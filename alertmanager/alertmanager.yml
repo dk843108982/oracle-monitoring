@@ -1,0 +1,50 @@
+# Alertmanager 配置 —— Oracle 企业监控告警路由
+# 接收来自 Prometheus 的告警，按严重级别路由到钉钉/企业微信/邮件（webhook 占位）
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers:
+        - severity = "critical"
+      receiver: critical-receiver
+      continue: true
+    - matchers:
+        - severity = "warning"
+      receiver: warning-receiver
+
+receivers:
+  - name: default
+    webhook_configs:
+      - url: "http://127.0.0.1:8080/alert-handler"   # 技能诊断服务 webhook（对接 skills_engine）
+        send_resolved: true
+
+  - name: critical-receiver
+    webhook_configs:
+      - url: "http://127.0.0.1:8080/alert-handler"
+        send_resolved: true
+    # --- 企业微信机器人（可选，填入 webhook 地址后启用）---
+    # wechat_configs:
+    #   - api_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
+    #     send_resolved: true
+    # --- 钉钉机器人（可选）---
+    # webhook_configs:
+    #   - url: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN"
+    #     send_resolved: true
+
+  - name: warning-receiver
+    webhook_configs:
+      - url: "http://127.0.0.1:8080/alert-handler"
+        send_resolved: true
+
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ["alertname"]

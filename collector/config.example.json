@@ -1,0 +1,20 @@
+{
+  "mode": "demo",
+  "listen": {"host": "0.0.0.0", "port": 9161},
+  "oracle_instances": [
+    {
+      "instance_name": "DB1-PROD",
+      "host": "127.0.0.1",
+      "port": 1521,
+      "service_name": "ORCLPDB1",
+      "user": "db_monitor",
+      "password": "ChangeMe_2026"
+    }
+  ],
+  "skill_repo": "..\\..\\oracle-skills",
+  "collect_interval_seconds": 30,
+  "demo": {
+    "tablespace_growth_per_cycle_mb": 12,
+    "alert_errors_per_cycle": 0
+  }
+}

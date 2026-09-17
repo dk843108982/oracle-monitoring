@@ -1,0 +1,32 @@
+# ============================================================
+# Oracle 企业监控 —— systemd 服务示例（Debian/Ubuntu/RHEL 通用）
+# 安装：
+#   sudo cp linux/oracle-monitor.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now oracle-monitor
+# 注意：将 /opt/oracle-monitoring 替换为你的实际解压路径
+# ============================================================
+[Unit]
+Description=Oracle Enterprise Monitor (collector + prometheus + alertmanager + grafana)
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/oracle-monitoring
+Environment=GF_PATHS_PROVISIONING=/opt/oracle-monitoring/grafana/provisioning
+Environment=GF_PATHS_DATA=/opt/oracle-monitoring/grafana/data
+Environment=GF_PATHS_LOGS=/opt/oracle-monitoring/logs
+Environment=GF_SECURITY_ADMIN_USER=admin
+Environment=GF_SECURITY_ADMIN_PASSWORD=admin
+Environment=GF_SERVER_HTTP_PORT=3000
+ExecStart=/opt/oracle-monitoring/linux/start.sh
+ExecStop=/opt/oracle-monitoring/linux/stop.sh
+Restart=on-failure
+User=root
+
+[Install]
+WantedBy=multi-user.target
+
+# 生产建议：为每个组件单独建 unit（Type=simple + Restart=always），
+# 并将 Grafana 密码改为环境变量注入，勿明文写在 unit 中。

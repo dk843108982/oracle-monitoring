@@ -1,0 +1,23 @@
+# Prometheus 主配置 —— Oracle 企业监控
+# 组件：oracle_collector(:9161) -> Prometheus -> Grafana(:3000) + Alertmanager(:9093)
+global:
+  scrape_interval: 15s      # 采集间隔
+  evaluation_interval: 15s  # 告警规则评估间隔
+  external_labels:
+    monitor: oracle-enterprise
+
+rule_files:
+  - rules/oracle_alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["127.0.0.1:9093"]
+
+scrape_configs:
+  - job_name: "oracle"
+    static_configs:
+      - targets: ["127.0.0.1:9161"]
+        labels:
+          env: prod
+          db: oracle

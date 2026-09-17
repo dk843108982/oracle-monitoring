@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oracle Skill Console — 技能选择与诊断中心</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif; background: #f2f4f8; color: #1f2329; font-size: 14px; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 16px; }
+  header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  header h1 { font-size: 20px; }
+  header .sub { color: #6b7280; font-size: 13px; margin-top: 4px; }
+  .statusbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .pill { background: #fff; border: 1px solid #e5e7eb; border-radius: 20px; padding: 6px 14px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot.g { background: #16a34a; } .dot.r { background: #dc2626; } .dot.y { background: #d97706; } .dot.gr { background: #9ca3af; }
+  nav { display: flex; gap: 4px; border-bottom: 2px solid #e5e7eb; margin-bottom: 16px; flex-wrap: wrap; }
+  nav button { background: none; border: none; padding: 10px 18px; font-size: 14px; cursor: pointer; color: #4b5563; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+  nav button.active { color: #1d4ed8; border-bottom-color: #1d4ed8; font-weight: 600; }
+  .tab { display: none; }
+  .tab.active { display: block; }
+  .layout { display: flex; gap: 14px; align-items: flex-start; }
+  .col { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; }
+  .col-tree { flex: 0 0 250px; max-height: 78vh; overflow: auto; }
+  .col-main { flex: 1; min-width: 0; }
+  .col-side { flex: 0 0 340px; }
+  h3 { font-size: 15px; margin-bottom: 10px; color: #111827; }
+  .tree-item { padding: 7px 10px; border-radius: 6px; cursor: pointer; margin-bottom: 2px; }
+  .tree-item:hover { background: #f3f4f6; }
+  .tree-item.active { background: #e0e7ff; color: #1d4ed8; font-weight: 600; }
+  .tree-item .cnt { color: #9ca3af; font-size: 12px; margin-left: 4px; }
+  .skill-item { display: flex; justify-content: space-between; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 6px; cursor: pointer; }
+  .skill-item:hover { border-color: #1d4ed8; background: #f8faff; }
+  .skill-item.active { border-color: #1d4ed8; background: #eef2ff; }
+  .skill-item .t { font-weight: 600; }
+  .skill-item .m { color: #6b7280; font-size: 12px; margin-top: 2px; }
+  .detail-box { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; background: #fff; }
+  .sql-block { background: #0f172a; color: #d1e7ff; border-radius: 8px; padding: 12px; font-family: Consolas, monospace; font-size: 12px; overflow: auto; margin: 8px 0; position: relative; white-space: pre; }
+  .copy-btn { position: absolute; top: 6px; right: 8px; background: #1e40af; color: #fff; border: none; border-radius: 5px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+  .badge { display: inline-block; background: #eef2ff; color: #3730a3; border-radius: 12px; padding: 2px 10px; font-size: 12px; margin: 2px 4px 2px 0; }
+  .list-item { padding: 8px 10px; border-left: 3px solid #93c5fd; background: #f8fafc; border-radius: 0 6px 6px 0; margin-bottom: 6px; font-size: 13px; }
+  .route-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; margin-bottom: 12px; background: #fff; }
+  .route-card h4 { margin-bottom: 6px; }
+  .steps { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+  .step-chip { background: #1d4ed8; color: #fff; border-radius: 16px; padding: 4px 12px; font-size: 13px; }
+  .arrow { color: #9ca3af; }
+  form.diag { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  select, input, button { font-size: 14px; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; }
+  button.primary { background: #1d4ed8; color: #fff; border: none; cursor: pointer; }
+  button.primary:hover { background: #1e40af; }
+  .runbook { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; font-family: Consolas, monospace; font-size: 12px; white-space: pre-wrap; max-height: 55vh; overflow: auto; }
+  .report-item { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; cursor: pointer; font-size: 13px; }
+  .report-item:hover { background: #f8faff; }
+  .report-item .tm { color: #9ca3af; font-size: 12px; }
+  .alert-row { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px; padding: 10px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+  .alert-row.header { background: #f8fafc; font-weight: 600; }
+  .mono { font-family: Consolas, monospace; }
+  .empty { color: #9ca3af; text-align: center; padding: 30px 0; }
+  @media (max-width: 900px) { .layout { flex-direction: column; } .col-tree, .col-side { flex: 1 1 auto; max-height: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>🕹 Oracle Skill Console</h1>
+      <div class="sub">oracle/skills 技能路由中心 —— Route, Don't Flood：按角色 / 按任务选择技能，一键触发诊断</div>
+    </div>
+    <div class="statusbar" id="statusbar"><span class="pill">加载中…</span></div>
+  </header>
+
+  <nav>
+    <button class="active" data-tab="map">🗺 技能地图</button>
+    <button data-tab="persona">🧭 按角色路由</button>
+    <button data-tab="task">🎯 按任务诊断</button>
+    <button data-tab="alert">🔔 告警联动</button>
+  </nav>
+
+  <!-- 技能地图 -->
+  <div class="tab active" id="tab-map">
+    <div class="layout">
+      <div class="col col-tree">
+        <h3>技能分类（db/SKILL.md 路由表）</h3>
+        <div id="tree"></div>
+      </div>
+      <div class="col col-main">
+        <h3 id="cat-title">选择一个分类</h3>
+        <div id="skill-list"></div>
+      </div>
+      <div class="col col-side">
+        <h3 id="detail-title">技能详情</h3>
+        <div id="detail" class="detail-box"><div class="empty">点击左侧技能查看官方详情（SQL / 最佳实践 / 常见坑）</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 按角色路由 -->
+  <div class="tab" id="tab-persona">
+    <h3>按角色选择技能（Oracle 官方推荐路径）</h3>
+    <div id="personas"></div>
+  </div>
+
+  <!-- 按任务诊断 -->
+  <div class="tab" id="tab-task">
+    <h3>按任务选择技能序列（db/SKILL.md 多步流程）</h3>
+    <div id="task-routes"></div>
+    <div class="col" style="margin-top:14px;">
+      <h3>⚡ 一键执行技能诊断</h3>
+      <form class="diag" id="diag-form">
+        <select id="diag-type">
+          <option value="tablespace">表空间告警（space-management）</option>
+          <option value="alertlog">Alert 日志 ORA 错误</option>
+          <option value="slow_sql">慢 SQL 诊断</option>
+          <option value="wait_events">等待事件诊断</option>
+          <option value="instance_down">实例失联</option>
+          <option value="memory">内存调优</option>
+          <option value="awr">AWR 基线分析</option>
+          <option value="ash">ASH 实时会话</option>
+        </select>
+        <input id="diag-ctx" placeholder='上下文 JSON，如 {"tablespace":"USERS","used_pct":92}' style="flex:1;min-width:220px;">
+        <button type="submit" class="primary">运行诊断 →</button>
+      </form>
+      <div id="run-result"></div>
+    </div>
+    <div class="col" style="margin-top:14px;">
+      <h3>📁 诊断报告历史</h3>
+      <div id="reports"></div>
+    </div>
+  </div>
+
+  <!-- 告警联动 -->
+  <div class="tab" id="tab-alert">
+    <h3>Prometheus 告警 → oracle/skills 技能映射</h3>
+    <div id="alertmap"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = (s, el) => (el || document).querySelector(s);
+const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
+let SKILLS = {}, CATS = [], CURRENT_CAT = "";
+
+async function api(path, opt) {
+  const r = await fetch(path, opt);
+  return r.json();
+}
+
+// ---- 状态栏 ----
+async function loadStatus() {
+  try {
+    const st = await api("/api/status");
+    const pills = [];
+    const up = st.collector === "up";
+    pills.push(`<span class="pill"><span class="dot ${up ? "g" : "r"}"></span>采集器 ${up ? "UP" : "DOWN"}</span>`);
+    if (st.metrics.oracle_up) pills.push(`<span class="pill">oracle_up = ${st.metrics.oracle_up}</span>`);
+    const fir = st.alerts.filter(a => a.state === "firing");
+    const pen = st.alerts.filter(a => a.state === "pending");
+    pills.push(`<span class="pill"><span class="dot ${fir.length ? "r" : "g"}"></span>告警 FIRING ${fir.length} / PENDING ${pen.length}</span>`);
+    const ts = st.metrics.tablespaces || {};
+    const warn = Object.entries(ts).filter(([k, v]) => v >= 85).map(([k, v]) => `${k} ${v}%`);
+    if (warn.length) pills.push(`<span class="pill"><span class="dot y"></span>表空间警告: ${warn.join(", ")}</span>`);
+    $("#statusbar").innerHTML = pills.join("");
+  } catch (e) {
+    $("#statusbar").innerHTML = `<span class="pill"><span class="dot r"></span>状态不可用</span>`;
+  }
+}
+
+// ---- 技能地图 ----
+async function loadMap() {
+  const d = await api("/api/skills");
+  SKILLS = d.skills; CATS = d.categories;
+  const tree = $("#tree");
+  tree.innerHTML = CATS.map((c, i) => {
+    const cnt = Object.keys(SKILLS).filter(k => k.startsWith(c.dir + "/")).length;
+    return `<div class="tree-item" data-dir="${c.dir}" data-i="${i}">${c.topic} <span class="cnt">${cnt}</span></div>`;
+  }).join("");
+  $$(".tree-item", tree).forEach(el => el.addEventListener("click", () => {
+    $$(".tree-item", tree).forEach(x => x.classList.remove("active"));
+    el.classList.add("active");
+    showCat(el.dataset.dir, el.dataset.i);
+  }));
+  if (CATS.length) showCat(CATS[0].dir, 0);
+}
+
+function showCat(dir, i) {
+  CURRENT_CAT = dir;
+  const c = CATS[i];
+  $("#cat-title").textContent = c.topic + " — " + dir;
+  const files = Object.keys(SKILLS).filter(k => k.startsWith(dir + "/") && k.endsWith(".md")).sort();
+  const list = $("#skill-list");
+  if (!files.length) { list.innerHTML = `<div class="empty">该分类暂无技能文件</div>`; return; }
+  list.innerHTML = files.map(f => {
+    const s = SKILLS[f];
+    return `<div class="skill-item" data-f="${f}"><div><div class="t">${s.title}</div><div class="m mono">${f}</div></div></div>`;
+  }).join("");
+  $$(".skill-item", list).forEach(el => el.addEventListener("click", () => {
+    $$(".skill-item", list).forEach(x => x.classList.remove("active"));
+    el.classList.add("active");
+    showDetail(el.dataset.f);
+  }));
+  showDetail(files[0]);
+}
+
+async function showDetail(f) {
+  const d = await api("/api/skill?path=" + encodeURIComponent(f));
+  if (d.error) { $("#detail").innerHTML = `<div class="empty">${d.error}</div>`; return; }
+  $("#detail-title").textContent = d.title;
+  let h = `<div style="margin-bottom:8px;" class="mono">${d.file}</div>`;
+  if (d.version_notes) h += `<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:8px;font-size:12px;margin-bottom:8px;">📌 ${d.version_notes}</div>`;
+  if (d.sections && d.sections.length) h += `<div style="margin-bottom:8px;">` + d.sections.map(s => `<span class="badge">${s}</span>`).join("") + `</div>`;
+  if (d.sql_blocks && d.sql_blocks.length) {
+    h += `<div style="font-weight:600;margin:8px 0 4px;">诊断 SQL（${d.sql_blocks.length} 条）</div>`;
+    d.sql_blocks.forEach((sql, i) => {
+      h += `<div class="sql-block"><button class="copy-btn" data-sql="${i}">复制</button>${sql.replace(/</g, "&lt;")}</div>`;
+    });
+  }
+  if (d.best_practices && d.best_practices.length) {
+    h += `<div style="font-weight:600;margin:8px 0 4px;">最佳实践（${d.best_practices.length}）</div>`;
+    d.best_practices.forEach(b => { h += `<div class="list-item">${b}</div>`; });
+  }
+  if (d.common_mistakes && d.common_mistakes.length) {
+    h += `<div style="font-weight:600;margin:8px 0 4px;">常见坑（必须规避）</div>`;
+    d.common_mistakes.forEach(m => { h += `<div class="list-item" style="border-left-color:#f87171;">${m}</div>`; });
+  }
+  $("#detail").innerHTML = h;
+  $$(".copy-btn", $("#detail")).forEach(btn => btn.addEventListener("click", () => {
+    navigator.clipboard.writeText(d.sql_blocks[+btn.dataset.sql]);
+    btn.textContent = "已复制";
+    setTimeout(() => btn.textContent = "复制", 1200);
+  }));
+}
+
+// ---- 按角色路由 ----
+async function loadPersonas() {
+  const d = await api("/api/routes");
+  $("#personas").innerHTML = d.personas.map(p => `
+    <div class="route-card">
+      <h4>${p.icon} ${p.persona}</h4>
+      <div style="color:#6b7280;font-size:13px;margin-bottom:8px;">${p.desc}</div>
+      ${p.steps.map(s => `<div style="margin-bottom:8px;"><div style="font-weight:600;">${s.name}</div><div style="font-size:13px;color:#4b5563;">${s.detail}</div></div>`).join("")}
+    </div>`).join("");
+}
+
+// ---- 按任务诊断 ----
+async function loadTasks() {
+  const d = await api("/api/routes");
+  $("#task-routes").innerHTML = d.tasks.map(t => `
+    <div class="route-card">
+      <h4>🎯 ${t.task}</h4>
+      <div style="color:#6b7280;font-size:13px;margin-bottom:8px;">${t.desc}</div>
+      <div class="steps">${t.steps.map((s, i) => (i ? `<span class="arrow">→</span>` : "") + `<span class="step-chip">${s}</span>`).join("")}</div>
+    </div>`).join("");
+}
+
+async function runDiag(ev) {
+  ev.preventDefault();
+  const alert_type = $("#diag-type").value;
+  let ctx = null;
+  const raw = $("#diag-ctx").value.trim();
+  if (raw) { try { ctx = JSON.parse(raw); } catch (e) { ctx = { raw }; } }
+  $("#run-result").innerHTML = `<div class="empty">诊断中…</div>`;
+  const res = await api("/api/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ alert_type, context: ctx })
+  });
+  if (!res.ok) {
+    $("#run-result").innerHTML = `<div style="color:#dc2626;padding:10px;">${res.error || "执行失败"}</div>`;
+    return;
+  }
+  $("#run-result").innerHTML = `<div style="margin-bottom:6px;font-size:13px;">✅ 已生成报告 <span class="mono">${res.file}</span></div><div class="runbook">${res.runbook.replace(/</g, "&lt;")}</div>`;
+  loadReports();
+}
+
+async function loadReports() {
+  const rs = await api("/api/reports");
+  if (!rs.length) { $("#reports").innerHTML = `<div class="empty">暂无报告</div>`; return; }
+  $("#reports").innerHTML = rs.slice(0, 20).map((r, i) =>
+    `<div class="report-item" data-i="${i}"><b>${r.name}</b> <span class="tm">${r.time} · ${(r.size / 1024).toFixed(1)}KB</span></div>`).join("");
+  $$(".report-item", $("#reports")).forEach(el => el.addEventListener("click", () => {
+    const r = rs[+el.dataset.i];
+    $("#run-result").innerHTML = `<div style="margin-bottom:6px;font-size:13px;">📁 ${r.name}</div><div class="runbook">${r.content.replace(/</g, "&lt;")}</div>`;
+  }));
+}
+
+// ---- 告警联动 ----
+async function loadAlertMap() {
+  const rows = await api("/api/alertmap");
+  $("#alertmap").innerHTML =
+    `<div class="alert-row header"><div>Prometheus 告警</div><div>技能文件</div><div>阈值 / 说明</div></div>` +
+    rows.map(r => `<div class="alert-row"><div><b>${r.alert}</b><div class="mono" style="font-size:12px;color:#6b7280;">→ ${r.alert_type}</div></div><div class="mono" style="font-size:12px;">${r.skill}</div><div style="font-size:12px;">${r.threshold}</div></div>`).join("");
+}
+
+// ---- 路由切换 ----
+$$("nav button").forEach(btn => btn.addEventListener("click", () => {
+  $$("nav button").forEach(x => x.classList.remove("active"));
+  btn.classList.add("active");
+  $$(".tab").forEach(t => t.classList.remove("active"));
+  $("#tab-" + btn.dataset.tab).classList.add("active");
+  if (btn.dataset.tab === "persona") loadPersonas();
+  if (btn.dataset.tab === "task") { loadTasks(); loadReports(); }
+  if (btn.dataset.tab === "alert") loadAlertMap();
+}));
+
+$("#diag-form").addEventListener("submit", runDiag);
+
+// 初始化
+loadStatus();
+loadMap();
+loadPersonas();
+loadTasks();
+loadReports();
+loadAlertMap();
+setInterval(loadStatus, 15000);
+</script>
+</body>
+</html>

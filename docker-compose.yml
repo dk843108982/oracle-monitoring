@@ -1,0 +1,84 @@
+# ============================================================
+# Oracle 企业监控 —— Docker Compose 模板（最通用移植方式）
+# 用法（目标机安装 Docker + compose）：
+#   docker compose up -d
+# 说明：
+#   - 采集器镜像基于 python:3.12-slim，启动时自动 pip 安装 python-oracledb
+#   - oracle-skills 通过 bind mount 挂入容器（放本文件同级的 oracle-skills/ 目录）
+#   - 接入真实 Oracle 时：修改 collector/config.json 为 real 模式，
+#     并确保容器可访问目标库 1521 端口
+# 本模板未在本机验证（当前环境无 Docker），首次使用时请按报错微调。
+# ============================================================
+services:
+  collector:
+    build:
+      context: ./collector
+      dockerfile: Dockerfile
+    container_name: oracle-collector
+    ports:
+      - "9161:9161"
+    volumes:
+      - ./collector/config.json:/app/config.json:ro
+      - ./oracle-skills:/app/oracle-skills:ro
+      - ./collector/reports:/app/reports
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.13.3
+    container_name: oracle-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.listen-address=0.0.0.0:9090
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.0
+    container_name: oracle-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    restart: unless-stopped
+
+  alert-handler:
+    build:
+      context: ./collector
+      dockerfile: Dockerfile
+    container_name: oracle-alert-handler
+    entrypoint: ["python", "/app/alert_handler.py", "--port", "8080", "--repo", "/app/oracle-skills"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./oracle-skills:/app/oracle-skills:ro
+      - ./collector/reports:/app/reports
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.4.2
+    container_name: oracle-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_HTTP_PORT=3000
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  alertmanager-data:
+  grafana-data:

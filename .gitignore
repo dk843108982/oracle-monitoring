@@ -1,0 +1,35 @@
+# ---- 运行时数据（本地生成，不入库） ----
+logs/
+alertmanager/data/
+prometheus/data/
+grafana/data/
+collector/reports/
+*.log
+*.log.err
+
+# ---- 监控组件二进制与下载缓存（由下载脚本获取） ----
+bin/downloads/
+bin/extracted/
+
+# ---- 真实配置（含数据库口令）——只提交 config.example.json ----
+collector/config.json
+
+# ---- 构建产物 ----
+*.zip
+*.tar
+*.gz
+portable-test/
+
+# ---- Python ----
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ---- 第三方技能库（启动前按 README 自行拉取，不入库） ----
+oracle-skills/
+
+# ---- 系统 ----
+.DS_Store
+Thumbs.db
+desktop.ini

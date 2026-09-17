@@ -1,0 +1,243 @@
+# ============================================================
+# Oracle 企业监控告警规则
+# 阈值依据 oracle/skills 技能库：
+#   - db/monitoring/space-management.md
+#     used_pct >= 95 CRITICAL / >= 85 WARNING / >= 75 WATCH
+#   - db/monitoring/alert-log-analysis.md
+#     ORA-00600/07445/01578 需立即处理
+#   - db/performance/wait-events.md / memory-tuning.md
+#   - db/backup-recovery/（RMAN 备份年龄 / 归档滞后）
+# ============================================================
+groups:
+  - name: oracle-instance
+    rules:
+      - alert: OracleInstanceDown
+        expr: oracle_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          skill: db/monitoring/alert-log-analysis.md
+        annotations:
+          summary: "Oracle 实例失联 {{ $labels.instance }}"
+          description: "数据库实例 {{ $labels.instance }} 超过 1 分钟无法采集。技能路由: alert-log-analysis / instance_down"
+
+      - alert: OracleInstanceRestarted
+        expr: oracle_instance_uptime_seconds < 600
+        for: 5m
+        labels:
+          severity: warning
+          skill: db/admin/
+        annotations:
+          summary: "Oracle 实例刚重启（运行 <10 分钟）"
+          description: "实例运行时长 {{ $value }}s，可能发生重启或 failover，检查启动原因与恢复流程。技能路由: admin/instance"
+
+      - alert: OracleBlockedSessionsHigh
+        expr: oracle_sessions_blocked_total > 10
+        for: 5m
+        labels:
+          severity: warning
+          skill: db/admin/
+        annotations:
+          summary: "阻塞会话数过高（{{ $value }}）"
+          description: "超过 10 个会话处于阻塞状态，疑似锁竞争或应用死锁。技能路由: admin -> v$session / v$lock"
+
+      - alert: OracleLongRunningSessionsHigh
+        expr: oracle_long_running_sessions_total > 5
+        for: 10m
+        labels:
+          severity: warning
+          skill: db/monitoring/top-sql-queries.md
+        annotations:
+          summary: "长事务/长 SQL 会话过多（{{ $value }}）"
+          description: "超过 5 个活跃会话运行超过 30 分钟，检查是否有失控 SQL 或未提交事务。技能路由: top-sql-queries"
+
+  - name: oracle-space
+    rules:
+      - alert: OracleTablespaceCritical
+        expr: oracle_tablespace_used_percent >= 95
+        for: 2m
+        labels:
+          severity: critical
+          skill: db/monitoring/space-management.md
+        annotations:
+          summary: "表空间 {{ $labels.tablespace }} 使用率 {{ $value }}%（CRITICAL）"
+          description: "使用率超过 95%，随时可能写满导致应用中断。技能路由: space-management -> tablespace"
+
+      - alert: OracleTablespaceWarning
+        expr: oracle_tablespace_used_percent >= 85 and oracle_tablespace_used_percent < 95
+        for: 5m
+        labels:
+          severity: warning
+          skill: db/monitoring/space-management.md
+        annotations:
+          summary: "表空间 {{ $labels.tablespace }} 使用率 {{ $value }}%（WARNING）"
+          description: "使用率超过 85%，应立即检查自动扩展上限与增长趋势。技能路由: space-management -> tablespace"
+
+      - alert: OracleTablespaceWatch
+        expr: oracle_tablespace_used_percent >= 75 and oracle_tablespace_used_percent < 85
+        for: 15m
+        labels:
+          severity: info
+          skill: db/monitoring/space-management.md
+        annotations:
+          summary: "表空间 {{ $labels.tablespace }} 使用率 {{ $value }}%（WATCH）"
+          description: "使用率超过 75%，纳入日常巡检关注。技能路由: space-management -> tablespace"
+
+      - alert: OracleUndoUsageHigh
+        expr: oracle_undo_used_percent > 80
+        for: 15m
+        labels:
+          severity: warning
+          skill: db/monitoring/space-management.md
+        annotations:
+          summary: "UNDO 表空间使用率 {{ $value }}%"
+          description: "UNDO 使用率超过 80%，可能存在大事务或 UNDO_RETENTION 不足。技能路由: space-management"
+
+      - alert: OracleTempUsageHigh
+        expr: oracle_temp_used_percent > 85
+        for: 15m
+        labels:
+          severity: warning
+          skill: db/monitoring/space-management.md
+        annotations:
+          summary: "临时表空间使用率 {{ $value }}%"
+          description: "TEMP 使用率超过 85%，可能有大型排序/哈希操作，检查 TOP SQL。技能路由: space-management -> top-sql-queries"
+
+  - name: oracle-alertlog
+    rules:
+      - alert: OracleAlertLogCriticalError
+        expr: sum by (error) (oracle_alertlog_errors_total) > 0
+        for: 1m
+        labels:
+          severity: critical
+          skill: db/monitoring/alert-log-analysis.md
+        annotations:
+          summary: "Alert 日志出现 ORA 错误 {{ $labels.error }}"
+          description: "检测到 {{ $labels.error }}，请立即检查 alert.log 与关联 trace 文件。技能路由: alert-log-analysis -> alertlog"
+
+      - alert: OracleAlertIncidentsOpen
+        expr: oracle_alert_incidents_total > 0
+        for: 10m
+        labels:
+          severity: warning
+          skill: db/monitoring/adrci-usage.md
+        annotations:
+          summary: "ADR 存在 {{ $value }} 个开放 Incident"
+          description: "ADR 有未处理的严重 incident，使用 adrci 查看详情。技能路由: adrci-usage"
+
+  - name: oracle-performance
+    rules:
+      - alert: OracleTopWaitEvent
+        expr: topk(1, oracle_wait_event_seconds) > 3600
+        for: 10m
+        labels:
+          severity: warning
+          skill: db/performance/wait-events.md
+        annotations:
+          summary: "Top 等待事件 {{ $labels.event }} 累计等待 {{ $value }}s"
+          description: "等待事件 {{ $labels.event }}（{{ $labels.wait_class }}）累计超过 1 小时，需定位瓶颈会话与 SQL。技能路由: wait-events"
+
+      - alert: OracleSlowSQL
+        expr: topk(1, oracle_top_sql_elapsed_seconds) > 1800
+        for: 10m
+        labels:
+          severity: warning
+          skill: db/monitoring/top-sql-queries.md
+        annotations:
+          summary: "SQL {{ $labels.sql_id }} 累计耗时 {{ $value }}s"
+          description: "Top SQL（{{ $labels.schema }}）累计耗时超过 30 分钟，需生成执行计划分析。技能路由: top-sql-queries -> slow_sql"
+
+      - alert: OracleBufferCacheHitRatioLow
+        expr: oracle_buffer_cache_hit_ratio < 95
+        for: 15m
+        labels:
+          severity: warning
+          skill: db/performance/memory-tuning.md
+        annotations:
+          summary: "Buffer Cache 命中率 {{ $value }}%"
+          description: "命中率低于 95%，可能存在内存配置或 SQL 访问路径问题。技能路由: memory-tuning -> memory"
+
+      - alert: OracleHardParseRatioHigh
+        expr: oracle_hard_parse_ratio > 20
+        for: 15m
+        labels:
+          severity: warning
+          skill: db/performance/optimizer-stats.md
+        annotations:
+          summary: "硬解析率过高（{{ $value }}%）"
+          description: "硬解析率超过 20%，检查游标共享（CURSOR_SHARING）与绑定变量使用。技能路由: optimizer-stats"
+
+      - alert: OracleRedoSwitchStorm
+        expr: oracle_redo_log_switches_1h_total > 300
+        for: 30m
+        labels:
+          severity: warning
+          skill: db/admin/
+        annotations:
+          summary: "日志切换风暴（1h {{ $value }} 次）"
+          description: "1 小时切换超过 300 次，redo log 可能过小或存在频繁提交。技能路由: admin/redo"
+
+  - name: oracle-archive
+    rules:
+      - alert: OracleArchiverFailed
+        expr: oracle_archiver_status == 0
+        for: 1m
+        labels:
+          severity: critical
+          skill: db/monitoring/alert-log-analysis.md
+        annotations:
+          summary: "归档进程异常"
+          description: "归档日志写入失败（ORA-00257 风险），检查归档目的地磁盘空间。技能路由: alert-log-analysis -> alertlog"
+
+      - alert: OracleArchiveLogVolumeSpike
+        expr: oracle_archive_logs_24h_total > 500
+        for: 30m
+        labels:
+          severity: warning
+          skill: db/monitoring/alert-log-analysis.md
+        annotations:
+          summary: "24 小时归档量过高（{{ $value }} 个）"
+          description: "日志切换频繁，评估 redo 日志大小与业务高峰。技能路由: alert-log-analysis"
+
+      - alert: OracleArchiveLagHigh
+        expr: oracle_archive_lag_seconds > 1800
+        for: 15m
+        labels:
+          severity: warning
+          skill: db/backup-recovery/
+        annotations:
+          summary: "归档滞后 {{ $value }}s（超过 30 分钟）"
+          description: "距最近归档超过 30 分钟，检查归档目的地写入性能或网络。技能路由: backup-recovery"
+
+  - name: oracle-backup
+    rules:
+      - alert: OracleBackupStale
+        expr: oracle_backup_age_days > 7
+        for: 1h
+        labels:
+          severity: critical
+          skill: db/backup-recovery/
+        annotations:
+          summary: "数据库超过 {{ $value }} 天未做全量备份"
+          description: "RMAN 全备年龄超过 7 天，数据丢失风险升高，尽快执行备份。技能路由: backup-recovery"
+
+      - alert: OracleBlockCorruptionDetected
+        expr: oracle_block_corruption_total > 0
+        for: 5m
+        labels:
+          severity: critical
+          skill: db/backup-recovery/
+        annotations:
+          summary: "检测到 {{ $value }} 个损坏块"
+          description: "V$DATABASE_BLOCK_CORRUPTION 报告数据块损坏，立即评估恢复策略（RMAN BLOCKRECOVER）。技能路由: backup-recovery"
+
+  - name: oracle-collector
+    rules:
+      - alert: OracleCollectorScrapeSlow
+        expr: oracle_collector_scrape_duration_seconds > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "采集耗时异常 {{ $value }}s"
+          description: "采集耗时超过 10s，检查数据库负载或网络连接。"

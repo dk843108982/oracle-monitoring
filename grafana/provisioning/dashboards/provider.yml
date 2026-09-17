@@ -1,0 +1,11 @@
+apiVersion: 1
+providers:
+  - name: oracle-dashboards
+    orgId: 1
+    folder: Oracle
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    options:
+      path: dashboards
+      foldersFromFilesStructure: false
