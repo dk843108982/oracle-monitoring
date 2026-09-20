@@ -233,6 +233,48 @@ py -3.12 .\collector\skills\\\\\\\_engine.py --alert wait\\\\\\\_events --json
 
 完整规则见 `prometheus\rules\oracle_alerts.yml`。
 
+## WatchAlert 集成（多渠道告警通知）
+
+本项目已集成 [WatchAlert](https://github.com/opsre/WatchAlert)（开源多数据源告警引擎），用于替代/补充 Alertmanager 的通知能力：
+
+- **多渠道通知**：微信 / 钉钉 / 飞书 / 企微 / 邮件 / Webhook
+- **告警聚合**：自动收敛同类告警，避免告警风暴
+- **告警静默**：维护窗口期间屏蔽指定告警
+- **值班管理**：支持值班表与升级策略
+- **前端可视化**：告警列表 / 历史记录 / 规则管理
+
+### 部署方式（Docker Compose）
+
+```bash
+cd oracle-monitoring
+docker compose up -d watchalert-mysql watchalert-redis watchalert watchalert-web
+```
+
+启动后访问：
+- **WatchAlert Web**：http://localhost:9004 （首次用初始化密码登录）
+- **WatchAlert API**：http://localhost:9002
+
+### 配置 Prometheus 双发告警
+
+编辑 prometheus/prometheus.yml，取消注释 WatchAlert 的 alertmanager 配置：
+
+```yaml
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]     # 现有 Alertmanager（本地诊断）
+    - static_configs:
+        - targets: ["watchalert:9001"]       # WatchAlert（多渠道通知）
+```
+
+### WatchAlert 里配置通知渠道
+
+1. 登录 WatchAlert Web → **通知对象** → 添加微信/钉钉/飞书机器人 Webhook
+2. **规则** → 创建接收组，关联 Prometheus 数据源
+3. **告警策略** → 配置聚合/静默/升级规则
+
+> 文档：https://cairry.github.io/docs/
+
 ## 组件清单
 
 
