@@ -78,7 +78,60 @@ services:
       - grafana-data:/var/lib/grafana
     restart: unless-stopped
 
+  # ============================================================
+  # WatchAlert —— 多数据源告警引擎（替代/补充 Alertmanager）
+  # 端口：web 前端 9004，API 9002
+  # 首次启动后访问 http://localhost:9004，用初始化密码登录
+  # 文档：https://cairry.github.io/docs/
+  # ============================================================
+  watchalert-mysql:
+    image: mysql:8.0
+    container_name: oracle-watchalert-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=WatchAlert2026
+      - MYSQL_DATABASE=WatchAlert
+      - MYSQL_USER=watchalert
+      - MYSQL_PASSWORD=WatchAlert2026
+    volumes:
+      - watchalert-mysql-data:/var/lib/mysql
+    restart: unless-stopped
+
+  watchalert-redis:
+    image: redis:7-alpine
+    container_name: oracle-watchalert-redis
+    restart: unless-stopped
+
+  watchalert:
+    image: cairry/watchalert:latest
+    container_name: oracle-watchalert
+    ports:
+      - "9002:9001"
+    environment:
+      - MYSQL_HOST=watchalert-mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=watchalert
+      - MYSQL_PASSWORD=WatchAlert2026
+      - MYSQL_DATABASE=WatchAlert
+      - REDIS_HOST=watchalert-redis
+      - REDIS_PORT=6379
+    depends_on:
+      - watchalert-mysql
+      - watchalert-redis
+    restart: unless-stopped
+
+  watchalert-web:
+    image: cairry/watchalert-web:latest
+    container_name: oracle-watchalert-web
+    ports:
+      - "9004:80"
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:9002
+    depends_on:
+      - watchalert
+    restart: unless-stopped
+
 volumes:
   prometheus-data:
   alertmanager-data:
   grafana-data:
+  watchalert-mysql-data:
