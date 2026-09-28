@@ -382,6 +382,10 @@ RAC 节点 OS 层指标（CPU / 内存 / 磁盘 / 网络 / load）通过 node_ex
 
 1. 下载 `node_exporter 1.8.2`（linux-amd64 单文件，GitHub 需代理）
 2. `docker cp` 进 racnode1 / racnode2 容器，`docker exec -d` 启动（监听 :9100）
+   ```powershell
+   docker exec -d racnode1 /usr/local/bin/node_exporter --web.listen-address=:9100 --collector.filesystem.fs-types-exclude="^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$"
+   ```
+   ⚠️ 必须显式排除列表**不含 overlay**，否则容器根分区（overlay 类型）磁盘使用率恒为 No data。
 3. Prometheus 容器加入 `rac_pub1_nw` 网络，新增 `oracle-node` job 抓取 `racnode1:9100`、`racnode2:9100`
 4. 综合看板"节点 OS"分组双节点同图对比
 
