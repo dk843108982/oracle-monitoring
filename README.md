@@ -10,7 +10,7 @@
 
 > 🌐 **项目主页（GitHub）**：[https://github.com/dk843108982/oracle-monitoring](https://github.com/dk843108982/oracle-monitoring)
 >
-> 包含：单实例监控（oracle-enterprise）、RAC 集群监控（oracle-rac）、Data Guard 监控（oracle-dg）三套 Grafana 大盘与完整采集器代码。
+> 包含三套 Grafana 大盘：单实例监控（oracle-enterprise）、RAC 集群监控（oracle-rac）、Data Guard 监控（oracle-dg），并可通过 `grafana/create_all_dashboard.py` 一键合并为 **Oracle 综合监控总看板（oracle-all）**，一个入口看全部。
 
 ## 架构
 
@@ -371,6 +371,10 @@ alerting:
 ```
 
 DG 面板：DG 角色（主备标识）、保护模式/级别、开放模式、日志模式/强制日志、DG 配置拓扑、归档目的地状态、传输滞后、应用滞后、MRP 进程、归档 GAP、Standby Redo Log，共 11 个面板。
+
+### 综合总看板（oracle-all）
+
+运行 `grafana/create_all_dashboard.py` 可将上面三套看板按分组合并为一个 **Oracle 综合监控** 看板（uid=`oracle-all`），顺序：实例总览 → 表空间 → 等待事件 → Top SQL → Alert 日志 → 内存与备份 → RAC 集群 → Data Guard。三套独立看板保留不删，可按需切换。
 
 ## 打包与移植到其他平台
 
