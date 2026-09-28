@@ -1,0 +1,128 @@
+# ============================================================
+# Oracle Data Guard + RAC 集群告警规则
+# 说明：
+#   - DG 指标（oracle_dg_*）由 collector 的 7 组 DG SQL 采集
+#   - RAC 指标（oracle_rac_*）由 collector 的 5 组 GV$ SQL 采集（含 inst_id）
+#   - 主库无备库时，滞后/GAP/MRP/standby log 类规则不产生数据，自动静默
+# ============================================================
+groups:
+  - name: oracle-dataguard
+    rules:
+      - alert: OracleDGRoleChanged
+        expr: changes(oracle_dg_role[10m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "DG 角色发生切换 {{ $labels.role }}（{{ $labels.db_unique_name }}）"
+          description: "{{ $labels.oracle_instance }} 的 DG 角色在 10 分钟内发生变化，疑似主备切换（FAILOVER/SWITCHOVER），立即确认切换原因与数据一致性。"
+
+      - alert: OracleDGTransportLagHigh
+        expr: oracle_dg_transport_lag_seconds > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DG 传输滞后 {{ $value }}s（{{ $labels.oracle_instance }}）"
+          description: "主库到备库的 redo 传输滞后超过 5 分钟，检查网络、归档目的地（V$ARCHIVE_DEST_STATUS）与 ARCn 进程。"
+
+      - alert: OracleDGApplyLagHigh
+        expr: oracle_dg_apply_lag_seconds > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DG 应用滞后 {{ $value }}s（{{ $labels.oracle_instance }}）"
+          description: "备库 apply 滞后超过 5 分钟，检查 MRP 进程状态（V$MANAGED_STANDBY）与备库负载。"
+
+      - alert: OracleDGApplyFinishHigh
+        expr: oracle_dg_apply_finish_seconds > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DG 应用完成时间预估 {{ $value }}s（{{ $labels.oracle_instance }}）"
+          description: "apply finish time 超过 5 分钟，备库积压重做日志，检查 IO 与 MRP 状态。"
+
+      - alert: OracleDGArchiveGapDetected
+        expr: oracle_dg_archive_gap_total > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "备库存在 {{ $value }} 个归档缺口"
+          description: "V$ARCHIVE_GAP 检测到归档缺口，需立即从主库重新传输缺失归档，否则备库不可用。"
+
+      - alert: OracleDGDestError
+        expr: oracle_dg_dest_error > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "归档目的地错误：{{ $labels.destination }}"
+          description: "{{ $labels.error }}。归档目的地写入失败，立即检查磁盘空间与网络。"
+
+      - alert: OracleDGMRPNotRunning
+        expr: (count by (oracle_instance) (oracle_dg_mrp_status{process=~"MRP.*"}) == 0) and on(oracle_instance) (oracle_dg_role == 2)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "备库 MRP 进程未运行（{{ $labels.oracle_instance }}）"
+          description: "物理备库（role=STANDBY）的 MRP0 进程不存在或已停止，redo 应用中断，备库数据滞后。"
+
+      - alert: OracleDGProtectionChanged
+        expr: changes(oracle_dg_protection_level[30m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "DG 保护级别变化（{{ $labels.oracle_instance }}）"
+          description: "保护级别在 30 分钟内发生变化，确认是否因归档目的地故障自动降级。"
+
+      - alert: OracleDGStandbyLogMissing
+        expr: (count by (oracle_instance) (oracle_dg_standby_log) == 0) and on(oracle_instance) (oracle_dg_role == 2)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "备库缺少 Standby Redo Log（{{ $labels.oracle_instance }}）"
+          description: "物理备库未配置 standby redo log，建议按主库 redo 组数配齐，避免切换时丢失日志。"
+
+  - name: oracle-rac
+    rules:
+      - alert: OracleRACNodeDown
+        expr: oracle_rac_instance_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "RAC 节点实例失联 inst{{ $labels.inst_id }}（{{ $labels.instance_name }}）"
+          description: "{{ $labels.host }} 上的实例 {{ $labels.instance_name }} 超过 1 分钟无法采集，检查节点状态与监听。"
+
+      - alert: OracleRACNodeRestarted
+        expr: changes(oracle_rac_instance_up[10m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAC 节点实例状态变化（{{ $labels.instance_name }}）"
+          description: "节点 {{ $labels.inst_id }}（{{ $labels.host }}）实例状态发生变化，可能发生节点重启或 VIP 漂移。"
+
+      - alert: OracleRACWaitEventHigh
+        expr: topk(1, oracle_rac_wait_event_seconds) > 3600
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAC 节点等待事件异常（{{ $labels.oracle_instance }} inst{{ $labels.inst_id }}）"
+          description: "节点 {{ $labels.inst_id }} 的等待事件 {{ $labels.event }} 累计超过 1 小时，检查该节点瓶颈（Cache Fusion / 锁 / IO）。"
+
+      - alert: OracleRACSessionSkew
+        expr: max by (oracle_instance) (oracle_rac_sessions_total{status="ACTIVE"}) / avg by (oracle_instance) (oracle_rac_sessions_total{status="ACTIVE"}) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAC 节点会话严重不均衡（{{ $labels.oracle_instance }}）"
+          description: "活跃会话最多的节点超过均值 2 倍，可能存在应用连接未走负载均衡（TAF/SCAN 配置问题）。"

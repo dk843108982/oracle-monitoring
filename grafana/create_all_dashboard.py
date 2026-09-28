@@ -57,6 +57,75 @@ rows.extend(collect_rows(ent))
 rows.extend(collect_rows(rac))
 rows.extend(collect_rows(dg))
 
+# 2.1 追加 OS 层监控区（node_exporter 采集 RAC 双节点）
+def os_ts(title, expr, unit, h=4, w=6):
+    return {
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "color": {"mode": "palette-classic"},
+                "custom": {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 1,
+                           "showPoints": "never", "spanNulls": False,
+                           "stacking": {"group": "A", "mode": "none"},
+                           "thresholdsStyle": {"mode": "off"}},
+                "mappings": [], "unit": unit,
+                "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": 0},
+                                                             {"color": "red", "value": 80}]},
+            },
+            "overrides": [],
+        },
+        "gridPos": {"h": h, "w": w, "x": 0, "y": 0},
+        "id": 0,
+        "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": True},
+                    "tooltip": {"hideZeros": False, "mode": "multi", "sort": "none"}},
+        "targets": [{"expr": expr, "legendFormat": "{{rac_node}}", "refId": "A"}],
+        "title": title,
+        "type": "timeseries",
+    }
+
+os_panels = [
+    os_ts("节点 CPU 使用率", '100 - avg by (rac_node) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100', "percent", 4, 6),
+    os_ts("节点内存使用率", '100 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100', "percent", 4, 6),
+    os_ts("根分区磁盘使用率", '100 * (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})', "percent", 4, 6),
+    os_ts("节点网络吞吐", 'rate(node_network_receive_bytes_total{device!="lo"}[5m])', "Bps", 4, 6),
+    os_ts("节点网络发送", 'rate(node_network_transmit_bytes_total{device!="lo"}[5m])', "Bps", 4, 6),
+    os_ts("节点负载 (1m)", "node_load1", "short", 4, 6),
+]
+rows.append(("节点 OS（node_exporter）", os_panels))
+
+# 2.2 表空间增长趋势预测面板（追加到"表空间"分组）
+ts_trend = {
+    "datasource": {"type": "prometheus", "uid": "prometheus"},
+    "fieldConfig": {
+        "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {"drawStyle": "line", "fillOpacity": 8, "lineWidth": 1,
+                       "showPoints": "never", "spanNulls": False,
+                       "stacking": {"group": "A", "mode": "none"},
+                       "thresholdsStyle": {"mode": "off"}},
+            "mappings": [], "unit": "decbytes",
+            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": 0},
+                                                         {"color": "red", "value": 80}]},
+        },
+        "overrides": [],
+    },
+    "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+    "id": 0,
+    "options": {"legend": {"calcs": ["max"], "displayMode": "table", "placement": "bottom", "showLegend": True},
+                "tooltip": {"hideZeros": False, "mode": "multi", "sort": "none"}},
+    "targets": [
+        {"expr": "sum by (tablespace) (oracle_tablespace_used_bytes)", "legendFormat": "{{tablespace}}", "refId": "A"},
+        {"expr": "predict_linear(sum by (tablespace) (oracle_tablespace_used_bytes)[7d], 86400*30)",
+         "legendFormat": "{{tablespace}} 预测(30d)", "refId": "B"},
+    ],
+    "title": "表空间增长趋势（实线=实际，虚线=30天线性预测）",
+    "type": "timeseries",
+}
+for row_title, ps in rows:
+    if row_title == "表空间":
+        ps.append(ts_trend)
+        break
+
 # 3. 重排布局：每行一个 row 头（h=1），其下按原相对位置平铺
 new_panels = []
 next_id = 1001

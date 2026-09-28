@@ -374,7 +374,24 @@ DG 面板：DG 角色（主备标识）、保护模式/级别、开放模式、�
 
 ### 综合总看板（oracle-all）
 
-运行 `grafana/create_all_dashboard.py` 可将上面三套看板按分组合并为一个 **Oracle 综合监控** 看板（uid=`oracle-all`），顺序：实例总览 → 表空间 → 等待事件 → Top SQL → Alert 日志 → 内存与备份 → RAC 集群 → Data Guard。三套独立看板保留不删，可按需切换。
+运行 `grafana/create_all_dashboard.py` 可将上面三套看板按分组合并为一个 **Oracle 综合监控** 看板（uid=`oracle-all`），顺序：实例总览 → 表空间 → 等待事件 → Top SQL → Alert 日志 → 内存与备份 → RAC 集群 → Data Guard → 节点 OS。共 10 个分组、66 个面板；表空间分组内置 **增长趋势预测**（`predict_linear`，30 天线性预测）。三套独立看板保留不删，可按需切换。
+
+## 节点 OS 监控（node_exporter）
+
+RAC 节点 OS 层指标（CPU / 内存 / 磁盘 / 网络 / load）通过 node_exporter 采集：
+
+1. 下载 `node_exporter 1.8.2`（linux-amd64 单文件，GitHub 需代理）
+2. `docker cp` 进 racnode1 / racnode2 容器，`docker exec -d` 启动（监听 :9100）
+3. Prometheus 容器加入 `rac_pub1_nw` 网络，新增 `oracle-node` job 抓取 `racnode1:9100`、`racnode2:9100`
+4. 综合看板"节点 OS"分组双节点同图对比
+
+实测双节点 :9100 均 UP，内存/CPU/磁盘指标正常。部署细节见监控打包文章第十章。
+
+## 告警规则（DG / RAC 13 条新增）
+
+`prometheus/rules/oracle_dg_rac_alerts.yml` 新增 13 条规则（DG 9 + RAC 4）：DG 角色切换、传输/应用滞后、归档 GAP、目的地错误、MRP 掉线、保护级别变化、standby log 缺失；RAC 节点失联、节点重启、等待异常、会话失衡。连同原有 22 条共 **35 条规则、9 个规则组**。Prometheus 重载：`docker kill -s HUP oracle-prometheus`。
+
+通知链路：Alertmanager(:9093) → alert-handler(:8080 技能诊断) → 钉钉/企业微信（`alertmanager/README-NOTIFY.md` 三步启用）。⚠️ webhook 必须写容器名 `alert-handler:8080`（非 127.0.0.1），alert-handler 需监听 `0.0.0.0`。
 
 ## 打包与移植到其他平台
 

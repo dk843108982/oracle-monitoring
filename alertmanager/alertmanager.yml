@@ -1,4 +1,4 @@
-# Alertmanager 配置 —— Oracle 企业监控告警路由
+﻿# Alertmanager 配置 —— Oracle 企业监控告警路由
 # 接收来自 Prometheus 的告警，按严重级别路由到钉钉/企业微信/邮件（webhook 占位）
 global:
   resolve_timeout: 5m
@@ -21,26 +21,41 @@ route:
 receivers:
   - name: default
     webhook_configs:
-      - url: "http://127.0.0.1:8080/alert-handler"   # 技能诊断服务 webhook（对接 skills_engine）
+      - url: "http://alert-handler:8080/alert-handler"   # 技能诊断服务 webhook（对接 skills_engine）
         send_resolved: true
 
   - name: critical-receiver
     webhook_configs:
-      - url: "http://127.0.0.1:8080/alert-handler"
+      - url: "http://alert-handler:8080/alert-handler"
         send_resolved: true
     # --- 企业微信机器人（可选，填入 webhook 地址后启用）---
     # wechat_configs:
     #   - api_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
     #     send_resolved: true
-    # --- 钉钉机器人（可选）---
+    # --- 钉钉机器人（可选，填入 access_token 后启用）---
     # webhook_configs:
     #   - url: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN"
     #     send_resolved: true
 
   - name: warning-receiver
     webhook_configs:
-      - url: "http://127.0.0.1:8080/alert-handler"
+      - url: "http://alert-handler:8080/alert-handler"
         send_resolved: true
+    # 企业微信 / 钉钉：同 critical-receiver 方式追加
+
+# ============================================================
+# 静默窗口（维护窗口，时间段内告警不通知）
+# 启用方法：将 mute_time_intervals 段取消注释，并重启 Alertmanager
+# 时间使用 cron 格式："Mon..Fri" 或 "Mon,Wed"；time 段为 24 小时制
+# 示例：工作日 02:00-04:00 例行维护静默
+# ============================================================
+# mute_time_intervals:
+#   - name: maintenance-window
+#     time_intervals:
+#       - weekdays: "Mon..Fri"
+#         times:
+#           - start_time: "02:00"
+#             end_time: "04:00"
 
 inhibit_rules:
   - source_matchers:

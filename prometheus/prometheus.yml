@@ -8,6 +8,7 @@ global:
 
 rule_files:
   - rules/oracle_alerts.yml
+  - rules/oracle_dg_rac_alerts.yml
 
 alerting:
   alertmanagers:
@@ -28,3 +29,16 @@ scrape_configs:
         labels:
           env: prod
           db: oracle
+
+  # RAC 节点 OS 层监控（node_exporter 部署于 racnode1/racnode2 容器内）
+  - job_name: "oracle-node"
+    static_configs:
+      - targets: ["racnode1:9100", "racnode2:9100"]
+        labels:
+          env: prod
+          db: oracle-rac-os
+    metric_relabel_configs:
+      - source_labels: [instance]
+        target_label: rac_node
+        regex: "([^:]+):.*"
+        replacement: "$1"

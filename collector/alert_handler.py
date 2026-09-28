@@ -114,6 +114,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     ap = argparse.ArgumentParser(description="Oracle Alert Handler")
+    ap.add_argument("--host", default="0.0.0.0")
     ap.add_argument("--port", type=int, default=8080)
     ap.add_argument("--repo", default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                                    "..", "..", "oracle-skills"))
@@ -122,8 +123,8 @@ def main():
 
     srv = AlertHandlerServer(args.repo, args.report_dir)
     Handler.server_ref = srv
-    httpd = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"[alert-handler] listening on http://127.0.0.1:{args.port}/alert-handler", flush=True)
+    httpd = ThreadingHTTPServer((args.host, args.port), Handler)
+    print(f"[alert-handler] listening on http://{args.host}:{args.port}/alert-handler", flush=True)
     print(f"[alert-handler] 技能库: {args.repo}", flush=True)
     print(f"[alert-handler] 诊断报告目录: {args.report_dir}", flush=True)
     try:
