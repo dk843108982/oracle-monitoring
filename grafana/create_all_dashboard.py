@@ -100,14 +100,20 @@ for p in groups["表空间"]:
         trend_panel = p
         break
 
-# 3.1 表空间使用率：RAC 多节点 used_percent 叠加会超 100%，clamp 到 100
+# 3.1 表空间使用率：多实例时百分比不能加总，必须按 (tablespace, oracle_instance) 分别展示
 for p in groups["表空间"]:
     if p.get("title") != "表空间使用率":
         continue
     for tg in p.get("targets", []):
         if "oracle_tablespace_used_percent" in (tg.get("expr") or ""):
             tg["expr"] = ("clamp_max(sum(oracle_tablespace_used_percent"
-                          "{oracle_instance=~\"$oracle_instance\"}) by (tablespace), 100)")
+                          "{oracle_instance=~\"$oracle_instance\"}) by (tablespace, oracle_instance), 100)")
+            tg["legendFormat"] = "{{tablespace}} {{oracle_instance}}"
+            tg["refId"] = "A"
+    # 多实例×多表空间 bar 较多：竖排展示，避免名字截断
+    opts = p.setdefault("options", {})
+    opts["orientation"] = "horizontal"
+    opts["displayMode"] = "gradient"
 
 if trend_panel is None:
     trend_panel = {

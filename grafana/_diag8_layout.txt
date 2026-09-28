@@ -1,0 +1,19 @@
+GRP 实例总览 -> 6 panels
+  -> appended 6 panels, y_cursor=9
+GRP 表空间 -> 5 panels
+  -> appended 5 panels, y_cursor=30
+GRP 会话与事务 -> 5 panels
+  -> appended 5 panels, y_cursor=39
+GRP 等待事件 -> 5 panels
+  -> appended 5 panels, y_cursor=60
+GRP Top SQL -> 2 panels
+  -> appended 2 panels, y_cursor=73
+GRP Alert 日志 -> 6 panels
+  -> appended 6 panels, y_cursor=89
+GRP 内存与备份 -> 6 panels
+  -> appended 6 panels, y_cursor=98
+GRP RAC 集群 -> 5 panels
+  -> appended 5 panels, y_cursor=115
+GRP Data Guard -> 11 panels
+  -> appended 11 panels, y_cursor=136
+NEW_PANELS=60
