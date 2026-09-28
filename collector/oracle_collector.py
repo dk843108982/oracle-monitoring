@@ -247,6 +247,19 @@ SKILL_SQL = {
         AND    message_text LIKE 'ORA-%'
         ORDER BY originating_timestamp DESC
     """,
+    # PDB 兼容回退（V$DIAG_ALERT_EXT 为 CDB 级视图，PDB 内不存在）：
+    # 用 DBA_ALERT_HISTORY + DBA_OUTSTANDING_ALERTS（PDB 内可用）提取近 1 小时告警/ORA 错误
+    "alert_log_fallback": """
+        SELECT creation_time AS error_time,
+               reason       AS message_text
+        FROM   dba_alert_history
+        WHERE  creation_time > SYSTIMESTAMP - INTERVAL '1' HOUR
+        UNION ALL
+        SELECT creation_time,
+               reason
+        FROM   dba_outstanding_alerts
+        ORDER BY error_time DESC
+    """,
     # db/admin — 会话与阻塞
     "sessions": """
         SELECT status, COUNT(*) AS cnt
@@ -886,18 +899,32 @@ class OracleCollector:
             print(f"[warn] top_sql scrape failed: {e}", file=sys.stderr)
 
         # ---- alert log ----
+        # V$DIAG_ALERT_EXT 为 CDB 级视图：CDB / 单实例直接可用；
+        # PDB 内不存在时回退 DBA_ALERT_HISTORY + DBA_OUTSTANDING_ALERTS（PDB 可用）。
         try:
             cols, rows = self.run_query(inst_name, SKILL_SQL["alert_log"])
-            err_count = {}
-            for r in rows:
-                d = dict(zip(cols, r))
-                m = re.search(r"(ORA-\d{5})", str(d.get("message_text", "")))
-                key = m.group(1) if m else "ORA-UNKNOWN"
-                err_count[key] = err_count.get(key, 0) + 1
-            for key, cnt in err_count.items():
-                lines.append(self._fmt_gauge("oracle_alertlog_errors_total", {"error": key}, cnt))
         except Exception as e:
-            print(f"[warn] alert_log scrape failed: {e}", file=sys.stderr)
+            if "ORA-00942" in str(e):
+                try:
+                    cols, rows = self.run_query(inst_name, SKILL_SQL["alert_log_fallback"])
+                except Exception as e2:
+                    if not getattr(self, "_alert_log_warned", False):
+                        print(f"[warn] alert_log (V$DIAG_ALERT_EXT + DBA fallback) scrape failed: {e2}", file=sys.stderr)
+                        self._alert_log_warned = True
+                    rows, cols = [], []
+            else:
+                if not getattr(self, "_alert_log_warned", False):
+                    print(f"[warn] alert_log scrape failed: {e}", file=sys.stderr)
+                    self._alert_log_warned = True
+                rows, cols = [], []
+        err_count = {}
+        for r in rows:
+            d = dict(zip(cols, r))
+            m = re.search(r"(ORA-\d{5})", str(d.get("message_text", "")))
+            key = m.group(1) if m else "ORA-UNKNOWN"
+            err_count[key] = err_count.get(key, 0) + 1
+        for key, cnt in err_count.items():
+            lines.append(self._fmt_gauge("oracle_alertlog_errors_total", {"error": key}, cnt))
 
         # ---- archive ----
         try:
