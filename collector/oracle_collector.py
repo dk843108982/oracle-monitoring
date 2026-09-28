@@ -164,24 +164,45 @@ METRIC_HEADER = (
 SKILL_SQL = {
     # db/monitoring/space-management.md — 主表空间监控查询
     "tablespace": """
-        SELECT 
-            d.tablespace_name,
-            ROUND(SUM(d.bytes) / 1073741824, 2) AS total_gb,
-            ROUND(SUM(d.bytes - NVL(f.free_bytes, 0)) / 1073741824, 2) AS used_gb,
-            ROUND(SUM(NVL(f.free_bytes, 0)) / 1073741824, 2) AS free_gb,
-            CASE WHEN SUM(d.bytes) > 0 
-                 THEN ROUND(100 * (SUM(d.bytes - NVL(f.free_bytes, 0)) / SUM(d.bytes)), 1)
-                 ELSE 0 END AS used_pct,
-            t.contents
-        FROM dba_data_files d
-        LEFT JOIN (
-            SELECT tablespace_name, SUM(bytes) AS free_bytes
-            FROM dba_free_space
-            GROUP BY tablespace_name
-        ) f ON d.tablespace_name = f.tablespace_name
-        JOIN dba_tablespaces t ON d.tablespace_name = t.tablespace_name
-        WHERE d.bytes > 0
-        GROUP BY d.tablespace_name, t.contents
+        SELECT tablespace_name, total_gb, used_gb, free_gb, used_pct, contents
+        FROM (
+            SELECT
+                d.tablespace_name,
+                ROUND(SUM(d.bytes) / 1073741824, 2) AS total_gb,
+                ROUND(SUM(d.bytes - NVL(f.free_bytes, 0)) / 1073741824, 2) AS used_gb,
+                ROUND(SUM(NVL(f.free_bytes, 0)) / 1073741824, 2) AS free_gb,
+                CASE WHEN SUM(d.bytes) > 0
+                     THEN ROUND(100 * (SUM(d.bytes - NVL(f.free_bytes, 0)) / SUM(d.bytes)), 1)
+                     ELSE 0 END AS used_pct,
+                t.contents
+            FROM dba_data_files d
+            LEFT JOIN (
+                SELECT tablespace_name, SUM(bytes) AS free_bytes
+                FROM dba_free_space
+                GROUP BY tablespace_name
+            ) f ON d.tablespace_name = f.tablespace_name
+            JOIN dba_tablespaces t ON d.tablespace_name = t.tablespace_name
+            WHERE d.bytes > 0
+            GROUP BY d.tablespace_name, t.contents
+            UNION ALL
+            SELECT
+                tf.tablespace_name,
+                ROUND(SUM(tf.bytes) / 1073741824, 2) AS total_gb,
+                ROUND(SUM(tf.bytes - NVL(h.free_bytes, 0)) / 1073741824, 2) AS used_gb,
+                ROUND(SUM(NVL(h.free_bytes, 0)) / 1073741824, 2) AS free_gb,
+                CASE WHEN SUM(tf.bytes) > 0
+                     THEN ROUND(100 * (SUM(tf.bytes - NVL(h.free_bytes, 0)) / SUM(tf.bytes)), 1)
+                     ELSE 0 END AS used_pct,
+                'TEMPORARY' AS contents
+            FROM dba_temp_files tf
+            LEFT JOIN (
+                SELECT tablespace_name, SUM(bytes_free) AS free_bytes
+                FROM v$temp_space_header
+                GROUP BY tablespace_name
+            ) h ON tf.tablespace_name = h.tablespace_name
+            WHERE tf.bytes > 0
+            GROUP BY tf.tablespace_name
+        )
         ORDER BY used_pct DESC
     """,
     # db/monitoring/space-management.md — 数据文件 / 自动扩展 / 最大上限
