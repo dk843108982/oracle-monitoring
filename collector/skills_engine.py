@@ -74,6 +74,31 @@ ALERT_ROUTES = {
         "title": "备份恢复诊断",
         "summary": "RMAN 备份状态、归档日志可用性、恢复策略检查。",
     },
+    "adrci": {
+        "skill": "db/monitoring/adrci-usage.md",
+        "title": "ADRCI 诊断仓库操作",
+        "summary": "ADRCI 管理 ADR：查询 alert log、trace、incident，打包 IPS 支持包，清理过期诊断内容。",
+    },
+    "health_monitor": {
+        "skill": "db/monitoring/health-monitor.md",
+        "title": "Health Monitor 健康检查诊断",
+        "summary": "通过 DBMS_HM 主动检查数据库结构完整性（数据块/redo/undo/字典），关联 SQL Tuning / Segment / Memory Advisor 建议。",
+    },
+    "explain_plan": {
+        "skill": "db/performance/explain-plan.md",
+        "title": "执行计划分析",
+        "summary": "生成并解读 EXPLAIN PLAN / DBMS_XPLAN 执行计划，识别全表扫描、错误驱动顺序与代价异常。",
+    },
+    "index_strategy": {
+        "skill": "db/performance/index-strategy.md",
+        "title": "索引策略诊断",
+        "summary": "覆盖 B-tree/位图/函数索引设计、复合索引列序、不可见索引、索引监控与维护。",
+    },
+    "optimizer_stats": {
+        "skill": "db/performance/optimizer-stats.md",
+        "title": "优化器统计信息诊断",
+        "summary": "检查表/索引统计新鲜度与 DBMS_STATS 收集策略，识别陈旧统计导致的错误执行计划。",
+    },
 }
 
 

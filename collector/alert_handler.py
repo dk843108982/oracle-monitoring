@@ -35,6 +35,11 @@ ALERT_SKILL_MAP = {
     "OracleArchiverFailed": "alertlog",
     "OracleArchiveLogVolumeSpike": "alertlog",
     "OracleCollectorScrapeSlow": "alertlog",
+    "OracleADRIncident": "adrci",
+    "OracleHealthMonitorCheck": "health_monitor",
+    "OracleExplainPlanIssue": "explain_plan",
+    "OracleIndexStrategyIssue": "index_strategy",
+    "OracleOptimizerStatsStale": "optimizer_stats",
 }
 
 

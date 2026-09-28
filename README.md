@@ -1,14 +1,32 @@
 # Oracle 企业级监控系统（基于 oracle/skills 技能库）
 
-一套完整、可运行的企业级 Oracle 数据库监控栈，**深度集成 [Oracle 官方 AI 技能库](https://github.com/oracle/skills)**——监控 SQL、阈值、诊断流程全部来自 Oracle 官方 DBA 技能文档，而非临时拼凑。
+一套完整、可运行的企业级 Oracle 数据库监控栈，**深度集成&#x20;**[Oracle 官方 AI 技能库](https://github.com/oracle/skills)—— 监控 SQL、阈值、诊断流程全部来自 Oracle 官方 DBA 技能文档，而非临时拼凑。
 
-> 📦 想发布到 GitHub？请看 [PUBLISH.md](PUBLISH.md)（含仓库内容规划、发布步骤、Release 附件流程）。
-
-> 🌐 **项目主页（GitHub）**：[https://github.com/dk843108982/oracle-monitoring](https://github.com/dk843108982/oracle-monitoring)
+> 📦 想发布到 GitHub？请看 
 >
-> 包含三套 Grafana 大盘：单实例监控（oracle-enterprise）、RAC 集群监控（oracle-rac）、Data Guard 监控（oracle-dg），并可通过 `grafana/create_all_dashboard.py` 一键合并为 **Oracle 综合监控总看板（oracle-all，9 分组 51 面板）**，一个入口看全部。
+> [PUBLISH.md](PUBLISH.md)
+>
+> （含仓库内容规划、发布步骤、Release 附件流程）。
+> 🌐 
+>
+> **项目主页（GitHub）**
+>
+> ：
+>
+> [https://github.com/dk843108982/oracle-monitoring](https://github.com/dk843108982/oracle-monitoring)
+> 包含三套 Grafana 大盘：单实例监控（oracle-enterprise）、RAC 集群监控（oracle-rac）、Data Guard 监控（oracle-dg），并可通过 
+>
+> `grafana/create_all_dashboard.py`
+>
+>  一键合并为 
+>
+> **Oracle 综合监控总看板（oracle-all，9 分组 51 面板）**
+>
+> ，一个入口看全部。
 
 ## 架构
+
+
 
 ```
 ┌──────────────┐    ┌──────────────────┐    ┌───────────────────┐
@@ -31,18 +49,22 @@
                                                └─────────────────────────────┘
 ```
 
-| 组件 | 版本 | 端口 | 说明 |
-| --- | --- | --- | --- |
-| oracle_collector | Python + oracledb 26 | 9161 | 指标采集器（demo / real 双模式） |
-| Prometheus | 3.13.3 | 9090 | 时序存储 + 告警规则评估 |
-| Alertmanager | 0.34.0 | 9093 | 告警路由 / 抑制 / 通知 |
-| Grafana | 12.4.2 | 3000 | 可视化大盘（admin/admin） |
-| alert_handler | Python | 8080 | Alertmanager → 技能诊断桥接 |
-| oracle-skills | git 最新 | - | Oracle 官方技能库（本地克隆） |
+
+
+| 组件                | 版本                   | 端口   | 说明                    |
+| ----------------- | -------------------- | ---- | --------------------- |
+| oracle\_collector | Python + oracledb 26 | 9161 | 指标采集器（demo /real 双模式） |
+| Prometheus        | 3.13.3               | 9090 | 时序存储 + 告警规则评估         |
+| Alertmanager      | 0.34.0               | 9093 | 告警路由 / 抑制 / 通知        |
+| Grafana           | 12.4.2               | 3000 | 可视化大盘（admin/admin）    |
+| alert\_handler    | Python               | 8080 | Alertmanager → 技能诊断桥接 |
+| oracle-skills     | git 最新               | -    | Oracle 官方技能库（本地克隆）    |
 
 ## 快速开始
 
 ### 一键启动（Windows）
+
+
 
 ```
 .\start-all.ps1      # 启动全部组件（demo 模式，无需真实 Oracle）
@@ -51,10 +73,15 @@
 
 启动后访问：
 
-- Grafana 大盘：[http://localhost:3000](http://localhost:3000)（admin/admin）→ 打开 "Oracle Enterprise Monitor"
-- Prometheus：[http://localhost:9090](http://localhost:9090)
-- 采集指标：[http://localhost:9161/metrics](http://localhost:9161/metrics)
-- Alertmanager：[http://localhost:9093](http://localhost:9093)
+
+
+* Grafana 大盘：[http://localhost:3000](http://localhost:3000)（admin/admin）→ 打开 "Oracle Enterprise Monitor"
+
+* Prometheus：[http://localhost:9090](http://localhost:9090)
+
+* 采集指标：[http://localhost:9161/metrics](http://localhost:9161/metrics)
+
+* Alertmanager：[http://localhost:9093](http://localhost:9093)
 
 ### demo 模式说明
 
@@ -64,11 +91,15 @@
 
 **三步接入，推荐先用连接自检工具验证**：
 
+
+
 ```
 1. 目标库执行 grants.sql（建最小权限账号）
 2. 修改 collector\config.json（mode=real + 连接参数）
 3. 运行 connect-check.py 自检 → 全 PASS 后重启采集器
 ```
+
+
 
 ```
 py -3.12 .\collector\connect-check.py
@@ -76,7 +107,11 @@ py -3.12 .\collector\connect-check.py
 
 自检脚本会依次输出：**连接耗时 / 库版本实例 / 12 项视图权限探测 / 指标样例（表空间 TOP5、等待事件 TOP5、会话）**，并给出缺失权限的修复提示（缺什么补什么，无需全量授权）。
 
+
+
 1. **初始化监控账号**（在 Oracle 库以 SYSDBA 执行，最小权限）：
+
+
 
 ```
 @collector\grants.sql
@@ -84,9 +119,13 @@ py -3.12 .\collector\connect-check.py
 
 已包含：表空间、会话、等待事件、Top SQL、Alert 日志、归档、AWR 等全部只读视图授权。
 
-2. **修改采集配置** `collector\config.json`：
 
-```json
+
+1. **修改采集配置** `collector\config.json`：
+
+
+
+```
 {
   "mode": "real",
   "oracle": {
@@ -99,24 +138,38 @@ py -3.12 .\collector\connect-check.py
 }
 ```
 
-3. **重启采集器**（或直接运行）：
+
+
+1. **重启采集器**（或直接运行）：
+
+
 
 ```
 py -3.12 .\collector\oracle_collector.py --mode real --config .\collector\config.json
 ```
 
 > 真实模式执行的 SQL 全部取自 oracle/skills 技能库：
-> - `db/monitoring/space-management.md` —— 表空间主查询（DBA_TABLESPACE_USAGE_METRICS）
-> - `db/monitoring/alert-log-analysis.md` —— Alert 日志（V$DIAG_ALERT_EXT）
-> - `db/monitoring/top-sql-queries.md` —— Top SQL（V$SQLAREA）
-> - `db/performance/wait-events.md` —— 等待事件（V$SYSTEM_EVENT）
+> `db/monitoring/space-management.md`
+>
+>  —— 表空间主查询（DBA_TABLESPACE_USAGE_METRICS）
+> `db/monitoring/alert-log-analysis.md`
+>
+>  —— Alert 日志（V$DIAG_ALERT_EXT）
+> `db/monitoring/top-sql-queries.md`
+>
+>  —— Top SQL（V$SQLAREA）
+> `db/performance/wait-events.md`
+>
+>  —— 等待事件（V$SYSTEM_EVENT）
 
 ## oracle/skills 技能集成（核心亮点）
 
 技能库已克隆至 `..\oracle-skills\`，由 `collector\skills_engine.py` 消费：
 
+
+
 ```
-# 列出全部可用技能及对应告警
+# 列出全部可用技能及对应告警（14 类）
 py -3.12 .\collector\skills_engine.py --list
 
 # 生成某类告警的诊断手册（含官方 SQL、最佳实践、常见坑）
@@ -130,53 +183,80 @@ py -3.12 .\collector\skills_engine.py --alert wait_events --json
 
 告警 → 技能映射：
 
-| Prometheus 告警 | 技能文件 | 诊断内容 |
-| --- | --- | --- |
-| OracleTablespaceCritical/Warning/Watch | `db/monitoring/space-management.md` | 使用率分级（95/85/75）、自动扩展、HWM、碎片、扩容建议 |
-| OracleAlertLogCriticalError | `db/monitoring/alert-log-analysis.md` | ORA 错误分级、trace 关联、ADR 分析 |
-| OracleInstanceDown | `db/monitoring/alert-log-analysis.md` | 实例崩溃根因、监听、alert.log |
-| OracleSlowSQL | `db/monitoring/top-sql-queries.md` | Top SQL 定位、执行计划、AWR 对比 |
-| OracleTopWaitEvent | `db/performance/wait-events.md` | 等待事件分类、瓶颈定位 |
-| OracleBufferCacheHitRatioLow | `db/performance/memory-tuning.md` | SGA/PGA、命中率调优 |
+
+
+| Prometheus 告警                          | 技能文件                                  | 诊断内容                             |
+| -------------------------------------- | ------------------------------------- | -------------------------------- |
+| OracleTablespaceCritical/Warning/Watch | `db/monitoring/space-management.md`   | 使用率分级（95/85/75）、自动扩展、HWM、碎片、扩容建议 |
+| OracleAlertLogCriticalError            | `db/monitoring/alert-log-analysis.md` | ORA 错误分级、trace 关联、ADR 分析         |
+| OracleInstanceDown                     | `db/monitoring/alert-log-analysis.md` | 实例崩溃根因、监听、alert.log              |
+| OracleSlowSQL                          | `db/monitoring/top-sql-queries.md`    | Top SQL 定位、执行计划、AWR 对比           |
+| OracleTopWaitEvent                     | `db/performance/wait-events.md`       | 等待事件分类、瓶颈定位                      |
+| OracleBufferCacheHitRatioLow           | `db/performance/memory-tuning.md`     | SGA/PGA、命中率调优                    |
+| OracleADRIncident                      | `db/monitoring/adrci-usage.md`        | ADRCI 查询 alert/trace/incident、IPS 打包 |
+| OracleHealthMonitorCheck               | `db/monitoring/health-monitor.md`     | DBMS_HM 结构完整性检查、Advisor 建议        |
+| OracleExplainPlanIssue                 | `db/performance/explain-plan.md`      | EXPLAIN PLAN/DBMS_XPLAN、E-Rows vs A-Rows |
+| OracleIndexStrategyIssue               | `db/performance/index-strategy.md`    | B-tree/位图/FBI、复合列序、不可见索引、自动索引   |
+| OracleOptimizerStatsStale              | `db/performance/optimizer-stats.md`   | DBMS_STATS 新鲜度、陈旧统计导致计划回退        |
 
 ## 告警规则（阈值来自技能库最佳实践）
 
-- 表空间：`>=95% CRITICAL`（立即处理）、`>=85% WARNING`（当日处理）、`>=75% WATCH`（巡检关注）——告警摘要均带实例名（如 `表空间 SYSTEM（RAC-ORCLCDB）使用率 97.8%`）
-- Alert 日志：任何 ORA 错误 → CRITICAL（ORA-00600/07445/01578 需立即处理）
-- 等待事件：Top 事件累计 > 1h → WARNING
-- 慢 SQL：Top SQL 累计耗时 > 30min → WARNING
-- Buffer Cache 命中率 < 95% → WARNING
-- 归档：归档进程失败 → CRITICAL；24h 归档 > 500 → WARNING
+
+
+* 表空间：`>=95% CRITICAL`（立即处理）、`>=85% WARNING`（当日处理）、`>=75% WATCH`（巡检关注）—— 告警摘要均带实例名（如 `表空间 SYSTEM（RAC-ORCLCDB）使用率 97.8%`）
+
+* Alert 日志：任何 ORA 错误 → CRITICAL（ORA-00600/07445/01578 需立即处理）
+
+* 等待事件：Top 事件累计 > 1h → WARNING
+
+* 慢 SQL：Top SQL 累计耗时 > 30min → WARNING
+
+* Buffer Cache 命中率 < 95% → WARNING
+
+* 归档：归档进程失败 → CRITICAL；24h 归档 > 500 → WARNING
 
 完整规则见 `prometheus\rules\oracle_alerts.yml`（22 条）+ `prometheus\rules\oracle_dg_rac_alerts.yml`（13 条），共 **35 条规则、9 个规则组**。
 
 ## WatchAlert 集成（多渠道告警通知）
 
-本项目已集成 [WatchAlert](https://github.com/opsre/WatchAlert)（开源多数据源告警引擎），用于替代/补充 Alertmanager 的通知能力：
+本项目已集成 [WatchAlert](https://github.com/opsre/WatchAlert)（开源多数据源告警引擎），用于替代 / 补充 Alertmanager 的通知能力：
 
-- **多渠道通知**：微信 / 钉钉 / 飞书 / 企微 / 邮件 / Webhook
-- **告警聚合**：自动收敛同类告警，避免告警风暴
-- **告警静默**：维护窗口期间屏蔽指定告警
-- **值班管理**：支持值班表与升级策略
-- **前端可视化**：告警列表 / 历史记录 / 规则管理
+
+
+* **多渠道通知**：微信 / 钉钉 / 飞书 / 企微 / 邮件 / Webhook
+
+* **告警聚合**：自动收敛同类告警，避免告警风暴
+
+* **告警静默**：维护窗口期间屏蔽指定告警
+
+* **值班管理**：支持值班表与升级策略
+
+* **前端可视化**：告警列表 / 历史记录 / 规则管理
 
 ### 部署方式（Docker Compose）
 
-```bash
+
+
+```
 cd oracle-monitoring
 docker compose up -d watchalert-mysql watchalert-redis watchalert watchalert-web
 ```
 
 启动后访问：
 
-- **WatchAlert Web**：http://localhost:9004（首次用初始化密码登录）
-- **WatchAlert API**：http://localhost:9002
+
+
+* **WatchAlert Web**：[http://localhost:9004](http://localhost:9004)（首次用初始化密码登录）
+
+* **WatchAlert API**：[http://localhost:9002](http://localhost:9002)
 
 ### 配置 Prometheus 双发告警
 
 编辑 `prometheus/prometheus.yml`，取消注释 WatchAlert 的 alertmanager 配置：
 
-```yaml
+
+
+```
 alerting:
   alertmanagers:
     - static_configs:
@@ -187,60 +267,79 @@ alerting:
 
 ### WatchAlert 里配置通知渠道
 
-1. 登录 WatchAlert Web → **通知对象** → 添加微信/钉钉/飞书机器人 Webhook
-2. **规则** → 创建接收组，关联 Prometheus 数据源
-3. **告警策略** → 配置聚合/静默/升级规则
 
-> 文档：https://cairry.github.io/docs/
+
+1. 登录 WatchAlert Web → **通知对象** → 添加微信 / 钉钉 / 飞书机器人 Webhook
+
+2. **规则** → 创建接收组，关联 Prometheus 数据源
+
+3. **告警策略** → 配置聚合 / 静默 / 升级规则
+
+> 文档：
+>
+> [https://cairry.github.io/docs/](https://cairry.github.io/docs/)
 
 ## 组件清单
 
-| 组件 | 端口 | 说明 |
-| --- | --- | --- |
-| Grafana | 3000 | Oracle Enterprise Monitor 大盘，admin/admin |
+
+
+| 组件                | 端口       | 说明                                                  |
+| ----------------- | -------- | --------------------------------------------------- |
+| Grafana           | 3000     | Oracle Enterprise Monitor 大盘，admin/admin            |
 | **Skill Console** | **8090** | **oracle/skills 技能选择前端（路由地图 / 角色路由 / 任务诊断 / 告警联动）** |
-| Prometheus | 9090 | 指标与 35 条告警规则 |
-| Collector | 9161 | Oracle 双模采集器（demo / real），`/metrics` |
-| Alertmanager | 9093 | 告警分发（webhook → 8080） |
-| AlertHandler | 8080 | 告警 → 技能诊断桥接（生成诊断手册落盘 reports/） |
+| Prometheus        | 9090     | 指标与 35 条告警规则                                        |
+| Collector         | 9161     | Oracle 双模采集器（demo /real），`/metrics`                 |
+| Alertmanager      | 9093     | 告警分发（webhook → 8080）                                |
+| AlertHandler      | 8080     | 告警 → 技能诊断桥接（生成诊断手册落盘 reports/）                      |
 
 ## Skill Console —— 技能选择前端
 
 基于 Oracle 博客《Route, Don't Flood》（db/SKILL.md 即路由地图）实现：
 
-- **技能地图**：解析 db/SKILL.md 的 19 个分类路由表 + 170 个技能文件，点击查看官方 SQL / 最佳实践 / 常见坑（SQL 一键复制）
-- **按角色路由**：DBA / 应用开发 / AI 工程师 / 迁移负责人，各推荐官方技能路径
-- **按任务诊断**：慢查询、表空间、RAG、Agent 变更、SQLcl MCP 等任务序列；选择告警类型一键运行诊断（复用 skills_engine），手册实时展示并落盘
-- **告警联动**：Prometheus 告警 ↔ 技能文件映射表，顶部实时显示采集器与告警状态
+
+
+* **技能地图**：解析 db/SKILL.md 的 19 个分类路由表 + 171 个技能文件，点击查看官方 SQL / 最佳实践 / 常见坑（SQL 一键复制）
+
+* **按角色路由**：DBA / 应用开发 / AI 工程师 / 迁移负责人，各推荐官方技能路径
+
+* **按任务诊断**：慢查询、表空间、RAG、Agent 变更、SQLcl MCP 等任务序列；选择告警类型一键运行诊断（复用 skills\_engine），手册实时展示并落盘
+
+* **告警联动**：Prometheus 告警 ↔ 技能文件映射表，顶部实时显示采集器与告警状态
 
 访问：[http://localhost:8090](http://localhost:8090)
 
 ## 指标维度（41 个系列，对应技能库）
 
-| 维度 | 指标 | 技能来源 |
-| --- | --- | --- |
-| 实例 / HA | up、instance_info、uptime、redo 切换、DB Time、硬解析率 | db/admin、performance/optimizer-stats |
-| 空间 | 表空间 used%/total/used/free/max/autoextend/free_days、TEMP%、UNDO% | db/monitoring/space-management.md |
-| 内存 | Buffer Cache 命中、Library Cache、SGA（按池）、共享池空闲、PGA | db/performance/memory-tuning.md |
-| 会话 / SQL | sessions（按状态）、阻塞、长事务、Top SQL（elapsed/cpu/executions） | db/monitoring/top-sql-queries.md、db/admin |
-| 等待事件 | 累计秒 / 等待次数 / 平均 ms（按事件） | db/performance/wait-events.md |
-| Alert / ADR | ORA 错误计数、开放 Incident | db/monitoring/alert-log-analysis.md、adrci-usage.md |
-| 归档 / 备份 | archiver、24h 归档量、归档滞后、备份年龄、损坏块 | db/backup-recovery/ |
-| 健康检查 | health check issues | db/monitoring/health-monitor.md |
+
+
+| 维度          | 指标                                                              | 技能来源                                               |
+| ----------- | --------------------------------------------------------------- | -------------------------------------------------- |
+| 实例 / HA     | up、instance\_info、uptime、redo 切换、DB Time、硬解析率                   | db/admin、performance/optimizer-stats               |
+| 空间          | 表空间 used%/total/used/free/max/autoextend/free\_days、TEMP%、UNDO% | db/monitoring/space-management.md                  |
+| 内存          | Buffer Cache 命中、Library Cache、SGA（按池）、共享池空闲、PGA                 | db/performance/memory-tuning.md                    |
+| 会话 / SQL    | sessions（按状态）、阻塞、长事务、Top SQL（elapsed/cpu/executions）            | db/monitoring/top-sql-queries.md、db/admin          |
+| 等待事件        | 累计秒 / 等待次数 / 平均 ms（按事件）                                         | db/performance/wait-events.md                      |
+| Alert / ADR | ORA 错误计数、开放 Incident                                            | db/monitoring/alert-log-analysis.md、adrci-usage.md |
+| 归档 / 备份     | archiver、24h 归档量、归档滞后、备份年龄、损坏块                                  | db/backup-recovery/                                |
+| 健康检查        | health check issues                                             | db/monitoring/health-monitor.md                    |
 
 ## RAC 集群监控（oracle-rac 大盘）
 
-采集器内置 5 组 GV$ SQL（带 `inst_id`），通过 SCAN 地址连接 RAC 集群：
+采集器内置 5 组 GV\$ SQL（带 `inst_id`），通过 SCAN 地址连接 RAC 集群：
 
-| 指标组 | 来源视图 | 覆盖内容 |
-| --- | --- | --- |
-| rac_instance | `gv$instance` | 各节点实例状态 / 启动时间 |
-| rac_sessions | `gv$session` | 各节点会话（按状态） |
-| rac_wait_events | `gv$system_event` | 各节点 Top 等待事件 |
-| rac_cache_transfer | `gv$sysstat`（gcs 系列） | Cache Fusion 块传输（CR/Current） |
-| rac_dlm | `gv$sysstat`（ges 系列） | DLM 锁请求 / 转换 / 释放 |
+
+
+| 指标组                  | 来源视图                 | 覆盖内容                         |
+| -------------------- | -------------------- | ---------------------------- |
+| rac\_instance        | `gv$instance`        | 各节点实例状态 / 启动时间               |
+| rac\_sessions        | `gv$session`         | 各节点会话（按状态）                   |
+| rac\_wait\_events    | `gv$system_event`    | 各节点 Top 等待事件                 |
+| rac\_cache\_transfer | `gv$sysstat`（gcs 系列） | Cache Fusion 块传输（CR/Current） |
+| rac\_dlm             | `gv$sysstat`（ges 系列） | DLM 锁请求 / 转换 / 释放            |
 
 快速接入：
+
+
 
 ```
 1. RAC 库执行 grant_rac.sql（创建 C##DB_MONITOR 公共账号 + GV$/V$ 授权）
@@ -255,19 +354,23 @@ alerting:
 
 采集器新增 7 组 DG SQL（主备库通用）：
 
-| 指标组 | 来源视图 | 覆盖内容 |
-| --- | --- | --- |
-| dg_database | `v$database` | database_role / protection_mode / open_mode / guard_status / log_mode / force_logging |
-| dg_config | `v$dataguard_config` | DG 配置拓扑（db_unique_name / role） |
-| dg_dest_status | `v$archive_dest_status` | 归档目的地状态 / GAP / 错误 |
-| dg_stats | `v$dataguard_stats` | transport lag / apply lag / apply finish time（解析为秒） |
-| dg_managed_standby | `v$managed_standby` | MRP / RFS / ARCH 进程状态 |
-| dg_archive_gap | `v$archive_gap` | 归档缺口序列 |
-| dg_standby_log | `v$standby_log` | Standby Redo Log 组状态 |
+
+
+| 指标组                  | 来源视图                    | 覆盖内容                                                                                        |
+| -------------------- | ----------------------- | ------------------------------------------------------------------------------------------- |
+| dg\_database         | `v$database`            | database\_role / protection\_mode / open\_mode / guard\_status / log\_mode / force\_logging |
+| dg\_config           | `v$dataguard_config`    | DG 配置拓扑（db\_unique\_name /role）                                                             |
+| dg\_dest\_status     | `v$archive_dest_status` | 归档目的地状态 / GAP / 错误                                                                          |
+| dg\_stats            | `v$dataguard_stats`     | transport lag /apply lag /apply finish time（解析为秒）                                           |
+| dg\_managed\_standby | `v$managed_standby`     | MRP / RFS / ARCH 进程状态                                                                       |
+| dg\_archive\_gap     | `v$archive_gap`         | 归档缺口序列                                                                                      |
+| dg\_standby\_log     | `v$standby_log`         | Standby Redo Log 组状态                                                                        |
 
 新增指标：`oracle_dg_role`（PRIMARY=1 / PHYSICAL STANDBY=2 / SNAPSHOT STANDBY=3 / LOGICAL STANDBY=4）、`oracle_dg_protection_mode/level`、`oracle_dg_open_mode`、`oracle_dg_guard_status`、`oracle_dg_log_mode`、`oracle_dg_force_logging`、`oracle_dg_config_info`、`oracle_dg_dest_status`、`oracle_dg_dest_error`、`oracle_dg_transport_lag_seconds`、`oracle_dg_apply_lag_seconds`、`oracle_dg_apply_finish_seconds`、`oracle_dg_mrp_status`、`oracle_dg_archive_gap_total`、`oracle_dg_archive_gap`、`oracle_dg_standby_log`。
 
 快速接入：
+
+
 
 ```
 1. 主/备库执行 grant.sql 或 grant_rac.sql（含 Data Guard 视图授权）
@@ -275,44 +378,59 @@ alerting:
 3. 运行 grafana/create_dg_dashboard.py 创建大盘
 ```
 
-DG 面板：DG 角色（主备标识）、保护模式/级别、开放模式、日志模式/强制日志、DG 配置拓扑、归档目的地状态、传输滞后、应用滞后、MRP 进程、归档 GAP、Standby Redo Log，共 11 个面板。
+DG 面板：DG 角色（主备标识）、保护模式 / 级别、开放模式、日志模式 / 强制日志、DG 配置拓扑、归档目的地状态、传输滞后、应用滞后、MRP 进程、归档 GAP、Standby Redo Log，共 11 个面板。
 
 ### 综合总看板（oracle-all）
 
 运行 `grafana/create_all_dashboard.py` 可将上面三套看板按分组合并为一个 **Oracle 综合监控** 看板（uid=`oracle-all`），**9 个规范分组、51 个面板**：实例总览 → 表空间 → 会话与事务 → 等待事件 → Top SQL → Alert 日志 → 内存与备份 → RAC 集群 → Data Guard。
 
-- 分组按**面板标题精确归类**，不在映射表的面板一律丢弃，消除机械拼接导致的错位；同标题同查询自动去重
-- 表空间分组内置 **增长趋势预测**（`predict_linear(oracle_tablespace_used_bytes[7d], 86400*30)`，实线=实际、虚线=30 天线性预测）
-- **表空间使用率按实例分别展示**：`clamp_max(sum(...) by (tablespace, oracle_instance), 100)`，选 All 时每个实例的表空间各一个 bar（如 `SYSAUX DB1-LOCAL 96.9%`），竖排展示避免名称截断——百分比不能跨实例加总
-- 三套独立看板保留不删，可按需切换
 
-## 节点 OS 监控（node_exporter）
 
-RAC 节点 OS 层指标（CPU / 内存 / 磁盘 / 网络 / load）通过 node_exporter 采集，**独立看板 oracle-os（6 面板）**：
+* 分组按**面板标题精确归类**，不在映射表的面板一律丢弃，消除机械拼接导致的错位；同标题同查询自动去重
+
+* 表空间分组内置 **增长趋势预测**（`predict_linear(oracle_tablespace_used_bytes[7d], 86400*30)`，实线 = 实际、虚线 = 30 天线性预测）
+
+* **表空间使用率按实例分别展示**：`clamp_max(sum(...) by (tablespace, oracle_instance), 100)`，选 All 时每个实例的表空间各一个 bar（如 `SYSAUX DB1-LOCAL 96.9%`），竖排展示避免名称截断 —— 百分比不能跨实例加总
+
+* 三套独立看板保留不删，可按需切换
+
+## 节点 OS 监控（node\_exporter）
+
+RAC 节点 OS 层指标（CPU / 内存 / 磁盘 / 网络 /load）通过 node\_exporter 采集，**独立看板 oracle-os（6 面板）**：
+
+
 
 1. 下载 `node_exporter 1.8.2`（linux-amd64 单文件，GitHub 需代理）
-2. `docker cp` 进 racnode1 / racnode2 容器，`docker exec -d` 启动（监听 :9100）
 
-```powershell
+2. `docker cp` 进 racnode1 /racnode2 容器，`docker exec -d` 启动（监听 :9100）
+
+
+
+```
 docker exec -d racnode1 /usr/local/bin/node_exporter --web.listen-address=:9100 --collector.filesystem.fs-types-exclude="^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$"
 ```
 
 ⚠️ 排除列表**不能含 overlay**，否则容器根分区（overlay 类型）磁盘使用率恒为 No data。
 
-3. Prometheus 容器加入 `rac_pub1_nw` 网络，新增 `oracle-node` job 抓取 `racnode1:9100`、`racnode2:9100`
-4. `grafana/create_os_dashboard.py` 一键生成 OS 独立看板，双节点 `{{rac_node}}` 同图对比
 
-实测双节点 :9100 均 UP，内存/CPU/磁盘指标正常。部署细节见监控打包文章第十章。
+
+1. Prometheus 容器加入 `rac_pub1_nw` 网络，新增 `oracle-node` job 抓取 `racnode1:9100`、`racnode2:9100`
+
+2. `grafana/create_os_dashboard.py` 一键生成 OS 独立看板，双节点 `{{rac_node}}` 同图对比
+
+实测双节点 :9100 均 UP，内存 / CPU / 磁盘指标正常。部署细节见监控打包文章第十章。
 
 ## 告警规则（DG / RAC 13 条新增）
 
-`prometheus/rules/oracle_dg_rac_alerts.yml` 新增 13 条规则（DG 9 + RAC 4）：DG 角色切换、传输/应用滞后、归档 GAP、目的地错误、MRP 掉线、保护级别变化、standby log 缺失；RAC 节点失联、节点重启、等待异常、会话失衡。连同原有 22 条共 **35 条规则、9 个规则组**。Prometheus 重载：`docker kill -s HUP oracle-prometheus`。
+`prometheus/rules/oracle_dg_rac_alerts.yml` 新增 13 条规则（DG 9 + RAC 4）：DG 角色切换、传输 / 应用滞后、归档 GAP、目的地错误、MRP 掉线、保护级别变化、standby log 缺失；RAC 节点失联、节点重启、等待异常、会话失衡。连同原有 22 条共 **35 条规则、9 个规则组**。Prometheus 重载：`docker kill -s HUP oracle-prometheus`。
 
-通知链路：Alertmanager(:9093) → alert-handler(:8080 技能诊断) → 钉钉/企业微信（`alertmanager/README-NOTIFY.md` 三步启用）。⚠️ webhook 必须写容器名 `alert-handler:8080`（非 127.0.0.1），alert-handler 需监听 `0.0.0.0`。
+通知链路：Alertmanager (:9093) → alert-handler (:8080 技能诊断) → 钉钉 / 企业微信（`alertmanager/README-NOTIFY.md` 三步启用）。⚠️ webhook 必须写容器名 `alert-handler:8080`（非 127.0.0.1），alert-handler 需监听 `0.0.0.0`。
 
 ## 打包与移植到其他平台
 
 ### 生成可移植包（Windows）
+
+
 
 ```
 .\package.ps1
@@ -324,18 +442,34 @@ docker exec -d racnode1 /usr/local/bin/node_exporter --web.listen-address=:9100 
 
 ### 目标机器部署（三选一）
 
-| 目标平台 | 步骤 | 依赖 |
-| --- | --- | --- |
-| **Windows 服务器** | 解压 zip → 装 Python 3.10+ 并 `.\collector\install-driver.ps1` → 运行 `start-all.ps1` | Python 3.10+ |
-| **Linux 服务器** | `linux/download-linux.sh` 下载 Linux 二进制 → `chmod +x linux/*.sh` → `./linux/start.sh`；开机自启用 `linux/oracle-monitor.service`（systemd） | python3 + oracledb |
-| **Docker 环境** | `docker compose up -d`（镜像自动拉取，采集器镜像内置 oracledb） | Docker + Compose |
+
+
+| 目标平台            | 步骤                                                                                                                                | 依赖                 |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| **Windows 服务器** | 解压 zip → 装 Python 3.10+ 并 `.\collector\install-driver.ps1` → 运行 `start-all.ps1`                                                   | Python 3.10+       |
+| **Linux 服务器**   | `linux/download-linux.sh` 下载 Linux 二进制 → `chmod +x linux/*.sh` → `./linux/start.sh`；开机自启用 `linux/oracle-monitor.service`（systemd） | python3 + oracledb |
+| **Docker 环境**   | `docker compose up -d`（镜像自动拉取，采集器镜像内置 oracledb）                                                                                   | Docker + Compose   |
 
 > 说明：
-> - Windows 包内已含 Windows 二进制，Linux/Docker 方式无需携带大体积包
-> - 接入真实 Oracle 库：三平台统一修改 `collector/config.json`（mode=real + 连接信息），先执行 `collector/grants.sql` 授权
-> - 换机器后首次启动若端口被占，修改各组件 `--web.listen-address` 即可
+> Windows 包内已含 Windows 二进制，Linux/Docker 方式无需携带大体积包
+> 接入真实 Oracle 库：三平台统一修改 
+>
+> `collector/config.json`
+>
+> （mode=real + 连接信息），先执行 
+>
+> `collector/grants.sql`
+>
+>  授权
+> 换机器后首次启动若端口被占，修改各组件 
+>
+> `--web.listen-address`
+>
+>  即可
 
 ## 目录结构
+
+
 
 ```
 oracle-monitoring/
@@ -371,7 +505,12 @@ git clone https://github.com/oracle/skills ../oracle-skills
 
 ## 常见问题
 
-- **oracledb 未安装**：`.\collector\install-driver.ps1`（PyPI 被拦截时改用公司内部镜像源）
-- **告警一直 pending 不 firing**：告警规则设了 `for` 持续时间（如表空间 WARNING 需持续 5 分钟），属正常行为
-- **切换到 real 模式后 oracle_up=0**：检查连接信息 / 监听 / 防火墙 / 监控账号权限
-- **接入钉钉 / 企业微信通知**：在 `alertmanager\alertmanager.yml` 的 receiver 中填入 webhook 地址
+
+
+* **oracledb 未安装**：`.\collector\install-driver.ps1`（PyPI 被拦截时改用公司内部镜像源）
+
+* **告警一直 pending 不 firing**：告警规则设了 `for` 持续时间（如表空间 WARNING 需持续 5 分钟），属正常行为
+
+* **切换到 real 模式后 oracle\_up=0**：检查连接信息 / 监听 / 防火墙 / 监控账号权限
+
+* **接入钉钉 / 企业微信通知**：在 `alertmanager\alertmanager.yml` 的 receiver 中填入 webhook 地址
