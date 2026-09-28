@@ -1,1 +1,1 @@
-python-oracledb>=26.0.0
+# python-oracledb>=26.0.0  # 真实 Oracle 模式需要，demo 模式可选

@@ -1,0 +1,576 @@
+{
+  "dashboard": {
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "links": [],
+    "panels": [
+      {
+        "collapsed": false,
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+        "id": 1,
+        "panels": [],
+        "title": "Data Guard 状态（V$DATAGUARD / V$ARCHIVE_DEST_STATUS）",
+        "type": "row"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "mappings": [
+              {
+                "options": {
+                  "1": { "color": "green", "text": "PRIMARY 主库" },
+                  "2": { "color": "orange", "text": "PHYSICAL STANDBY" },
+                  "3": { "color": "orange", "text": "SNAPSHOT STANDBY" },
+                  "4": { "color": "yellow", "text": "LOGICAL STANDBY" }
+                },
+                "type": "value"
+              }
+            ],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+        "id": 2,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "percentChangeColorMode": "standard",
+          "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false },
+          "showPercentChange": false,
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "oracle_dg_role{oracle_instance=~\"$oracle_instance\"}",
+            "legendFormat": "{{role}} / {{db_unique_name}} / {{oracle_instance}}",
+            "refId": "A"
+          }
+        ],
+        "title": "DG 角色",
+        "type": "stat"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+        "id": 3,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "percentChangeColorMode": "standard",
+          "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false },
+          "showPercentChange": false,
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "oracle_dg_protection_mode{oracle_instance=~\"$oracle_instance\"}",
+            "legendFormat": "{{protection_mode}} / {{oracle_instance}}",
+            "refId": "A"
+          },
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "oracle_dg_protection_level{oracle_instance=~\"$oracle_instance\"}",
+            "legendFormat": "Level: {{protection_level}} / {{oracle_instance}}",
+            "refId": "B"
+          }
+        ],
+        "title": "保护模式 / 级别",
+        "type": "stat"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+        "id": 4,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "percentChangeColorMode": "standard",
+          "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false },
+          "showPercentChange": false,
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "oracle_dg_open_mode{oracle_instance=~\"$oracle_instance\"}",
+            "legendFormat": "{{open_mode}} / {{oracle_instance}}",
+            "refId": "A"
+          }
+        ],
+        "title": "开放模式",
+        "type": "stat"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+        "id": 5,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "percentChangeColorMode": "standard",
+          "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false },
+          "showPercentChange": false,
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "oracle_dg_log_mode{oracle_instance=~\"$oracle_instance\"}",
+            "legendFormat": "{{log_mode}} / {{oracle_instance}}",
+            "refId": "A"
+          },
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "oracle_dg_force_logging{oracle_instance=~\"$oracle_instance\"}",
+            "legendFormat": "Force Logging: {{force_logging}} / {{oracle_instance}}",
+            "refId": "B"
+          }
+        ],
+        "title": "日志模式 / 强制日志",
+        "type": "stat"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "cellOptions": { "type": "auto" },
+              "footer": { "reducers": [] },
+              "inspect": false
+            },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 5, "w": 12, "x": 0, "y": 5 },
+        "id": 6,
+        "options": {
+          "cellHeight": "sm",
+          "showHeader": true,
+          "sortBy": [ { "desc": true, "displayName": "值" } ]
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "oracle_dg_config_info{oracle_instance=~\"$oracle_instance\"}",
+            "format": "table",
+            "instant": true,
+            "legendFormat": "{{db_unique_name}} / {{role}}",
+            "refId": "A"
+          }
+        ],
+        "title": "DG 配置拓扑（V$DATAGUARD_CONFIG）",
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": { "Time": true, "__name__": true },
+              "indexByName": {},
+              "renameByName": { "Value": "角色值", "db_unique_name": "DB 唯一名", "role": "角色", "oracle_instance": "实例" }
+            }
+          }
+        ],
+        "type": "table"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "cellOptions": { "type": "auto" },
+              "footer": { "reducers": [] },
+              "inspect": false
+            },
+            "mappings": [
+              {
+                "options": {
+                  "VALID": { "color": "green" },
+                  "ERROR": { "color": "red" },
+                  "INACTIVE": { "color": "dark-blue" }
+                },
+                "type": "value"
+              }
+            ],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 5, "w": 12, "x": 12, "y": 5 },
+        "id": 7,
+        "options": {
+          "cellHeight": "sm",
+          "showHeader": true,
+          "sortBy": [ { "desc": true, "displayName": "值" } ]
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "oracle_dg_dest_status{oracle_instance=~\"$oracle_instance\"}",
+            "format": "table",
+            "instant": true,
+            "legendFormat": "dest {{dest_id}}",
+            "refId": "A"
+          }
+        ],
+        "title": "归档目的地状态（V$ARCHIVE_DEST_STATUS）",
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": { "Time": true, "__name__": true },
+              "indexByName": {},
+              "renameByName": {
+                "Value": "值",
+                "dest_id": "Dest",
+                "destination": "目的地",
+                "status": "状态",
+                "type": "类型",
+                "db_unique_name": "DB 唯一名",
+                "gap_status": "GAP",
+                "oracle_instance": "实例"
+              }
+            }
+          }
+        ],
+        "type": "table"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "barWidthFactor": 0.6,
+              "drawStyle": "line",
+              "fillOpacity": 15,
+              "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false,
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": { "type": "linear" },
+              "showPoints": "never",
+              "showValues": false,
+              "spanNulls": false,
+              "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "decimals": 1,
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] },
+            "unit": "s"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 6, "w": 12, "x": 0, "y": 10 },
+        "id": 8,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "multi", "sort": "none" }
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "oracle_dg_transport_lag_seconds{oracle_instance=~\"$oracle_instance\"}",
+            "legendFormat": "{{oracle_instance}} transport lag",
+            "refId": "A"
+          }
+        ],
+        "title": "传输滞后（Transport Lag）",
+        "type": "timeseries"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "barWidthFactor": 0.6,
+              "drawStyle": "line",
+              "fillOpacity": 15,
+              "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false,
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": { "type": "linear" },
+              "showPoints": "never",
+              "showValues": false,
+              "spanNulls": false,
+              "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "decimals": 1,
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] },
+            "unit": "s"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 6, "w": 12, "x": 12, "y": 10 },
+        "id": 9,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "multi", "sort": "none" }
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "oracle_dg_apply_lag_seconds{oracle_instance=~\"$oracle_instance\"}",
+            "legendFormat": "{{oracle_instance}} apply lag",
+            "refId": "A"
+          },
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "oracle_dg_apply_finish_seconds{oracle_instance=~\"$oracle_instance\"}",
+            "legendFormat": "{{oracle_instance}} apply finish",
+            "refId": "B"
+          }
+        ],
+        "title": "应用滞后（Apply Lag / Finish）",
+        "type": "timeseries"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "cellOptions": { "type": "auto" },
+              "footer": { "reducers": [] },
+              "inspect": false
+            },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 5, "w": 10, "x": 0, "y": 16 },
+        "id": 10,
+        "options": {
+          "cellHeight": "sm",
+          "showHeader": true,
+          "sortBy": [ { "desc": true, "displayName": "值" } ]
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "oracle_dg_mrp_status{oracle_instance=~\"$oracle_instance\"}",
+            "format": "table",
+            "instant": true,
+            "legendFormat": "{{process}}",
+            "refId": "A"
+          }
+        ],
+        "title": "MRP / Managed Standby 进程（V$MANAGED_STANDBY）",
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": { "Time": true, "__name__": true },
+              "indexByName": {},
+              "renameByName": {
+                "Value": "值",
+                "process": "进程",
+                "status": "状态",
+                "client_process": "客户端",
+                "thread": "Thread",
+                "oracle_instance": "实例"
+              }
+            }
+          }
+        ],
+        "type": "table"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 5, "w": 4, "x": 10, "y": 16 },
+        "id": 11,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "percentChangeColorMode": "standard",
+          "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false },
+          "showPercentChange": false,
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "sum(oracle_dg_archive_gap_total{oracle_instance=~\"$oracle_instance\"}) by (oracle_instance)",
+            "legendFormat": "{{oracle_instance}}",
+            "refId": "A"
+          }
+        ],
+        "title": "归档 GAP 数",
+        "type": "stat"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "cellOptions": { "type": "auto" },
+              "footer": { "reducers": [] },
+              "inspect": false
+            },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 5, "w": 10, "x": 14, "y": 16 },
+        "id": 12,
+        "options": {
+          "cellHeight": "sm",
+          "showHeader": true,
+          "sortBy": [ { "desc": true, "displayName": "值" } ]
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "expr": "oracle_dg_standby_log{oracle_instance=~\"$oracle_instance\"}",
+            "format": "table",
+            "instant": true,
+            "legendFormat": "{{group}}",
+            "refId": "A"
+          }
+        ],
+        "title": "Standby Redo Log（V$STANDBY_LOG）",
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": { "Time": true, "__name__": true },
+              "indexByName": {},
+              "renameByName": {
+                "Value": "大小(GB)",
+                "group": "组",
+                "thread": "Thread",
+                "status": "状态",
+                "oracle_instance": "实例"
+              }
+            }
+          }
+        ],
+        "type": "table"
+      }
+    ],
+    "preload": false,
+    "refresh": "30s",
+    "schemaVersion": 42,
+    "tags": [ "oracle", "dg", "dataguard" ],
+    "templating": {
+      "list": [
+        {
+          "allValue": ".*",
+          "current": { "text": "All", "value": "$__all" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "includeAll": true,
+          "label": "数据库实例",
+          "multi": true,
+          "name": "oracle_instance",
+          "options": [],
+          "query": { "query": "label_values(oracle_up, oracle_instance)", "refId": "A" },
+          "refresh": 1,
+          "regexApplyTo": "value",
+          "type": "query"
+        }
+      ]
+    },
+    "time": { "from": "now-6h", "to": "now" },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "Oracle Data Guard 监控",
+    "uid": "oracle-dg",
+    "version": 1,
+    "weekStart": ""
+  }
+}

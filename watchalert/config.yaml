@@ -1,0 +1,28 @@
+# WatchAlert 配置文件
+Server:
+  port: "9001"
+  # release / debug / test
+  mode: "release"
+
+Database:
+  # 数据库类型: mysql 或 sqlite (默认: mysql)
+  type: mysql
+  # MySQL 配置 (当 type 为 mysql 时使用)
+  host: watchalert-mysql
+  port: 3306
+  user: watchalert
+  pass: WatchAlert2026
+  dbName: WatchAlert
+  timeout: 10s
+  # SQLite 配置 (当 type 为 sqlite 时使用)
+  path: data/w8t.db
+
+Redis:
+  host: watchalert-redis
+  port: 6379
+  pass: ""
+  database: 0
+
+Jwt:
+  # 失效时间
+  expire: 18000

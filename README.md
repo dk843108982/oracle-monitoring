@@ -8,6 +8,10 @@
 
 > 📦 想发布到 GitHub？请看 [PUBLISH.md](PUBLISH.md)（含仓库内容规划、发布步骤、Release 附件流程）。
 
+> 🌐 **项目主页（GitHub）**：[https://github.com/dk843108982/oracle-monitoring](https://github.com/dk843108982/oracle-monitoring)
+>
+> 包含：单实例监控（oracle-enterprise）、RAC 集群监控（oracle-rac）、Data Guard 监控（oracle-dg）三套 Grafana 大盘与完整采集器代码。
+
 ## 架构
 
 
@@ -319,6 +323,55 @@ alerting:
 
 告警规则 22 条、Grafana 面板 38 个（6 个分组）。
 
+## RAC 集群监控（oracle-rac 大盘）
+
+采集器内置 5 组 GV$ SQL（带 `inst_id`），通过 SCAN 地址连接 RAC 集群：
+
+| 指标组 | 来源视图 | 覆盖内容 |
+|---|---|---|
+| rac_instance | `gv$instance` | 各节点实例状态 / 启动时间 |
+| rac_sessions | `gv$session` | 各节点会话（按状态） |
+| rac_wait_events | `gv$system_event` | 各节点 Top 等待事件 |
+| rac_cache_transfer | `gv$sysstat`（gcs 系列） | Cache Fusion 块传输（CR/Current） |
+| rac_dlm | `gv$sysstat`（ges 系列） | DLM 锁请求 / 转换 / 释放 |
+
+快速接入：
+
+```
+1. RAC 库执行 grant_rac.sql（创建 C##DB_MONITOR 公共账号 + GV$/V$ 授权）
+2. collector/config.json 增加实例（host=SCAN IP, service_name=ORCLCDB, user=C##DB_MONITOR）
+3. 确保 collector 容器可访问 SCAN 网络（docker-compose.yml 已挂 rac_pub1_nw 外部网络）
+4. 运行 grafana/create_rac_dashboard.py 创建大盘
+```
+
+验证：Prometheus `up{oracle_instance="RAC-ORCLCDB"}=1`，`gv$instance` 双节点双行（ORCLCDB1/ORCLCDB2），Cache Fusion / DLM 指标随时间滚动。
+
+## Data Guard 监控（oracle-dg 大盘）
+
+采集器新增 7 组 DG SQL（主备库通用）：
+
+| 指标组 | 来源视图 | 覆盖内容 |
+|---|---|---|
+| dg_database | `v$database` | database_role / protection_mode / open_mode / guard_status / log_mode / force_logging |
+| dg_config | `v$dataguard_config` | DG 配置拓扑（db_unique_name / role） |
+| dg_dest_status | `v$archive_dest_status` | 归档目的地状态 / GAP / 错误 |
+| dg_stats | `v$dataguard_stats` | transport lag / apply lag / apply finish time（解析为秒） |
+| dg_managed_standby | `v$managed_standby` | MRP / RFS / ARCH 进程状态 |
+| dg_archive_gap | `v$archive_gap` | 归档缺口序列 |
+| dg_standby_log | `v$standby_log` | Standby Redo Log 组状态 |
+
+新增指标：`oracle_dg_role`（PRIMARY=1 / PHYSICAL STANDBY=2 / SNAPSHOT STANDBY=3 / LOGICAL STANDBY=4）、`oracle_dg_protection_mode/level`、`oracle_dg_open_mode`、`oracle_dg_guard_status`、`oracle_dg_log_mode`、`oracle_dg_force_logging`、`oracle_dg_config_info`、`oracle_dg_dest_status`、`oracle_dg_dest_error`、`oracle_dg_transport_lag_seconds`、`oracle_dg_apply_lag_seconds`、`oracle_dg_apply_finish_seconds`、`oracle_dg_mrp_status`、`oracle_dg_archive_gap_total`、`oracle_dg_archive_gap`、`oracle_dg_standby_log`。
+
+快速接入：
+
+```
+1. 主/备库执行 grant.sql 或 grant_rac.sql（含 Data Guard 视图授权）
+2. collector/config.json 配置主备库实例
+3. 运行 grafana/create_dg_dashboard.py 创建大盘
+```
+
+DG 面板：DG 角色（主备标识）、保护模式/级别、开放模式、日志模式/强制日志、DG 配置拓扑、归档目的地状态、传输滞后、应用滞后、MRP 进程、归档 GAP、Standby Redo Log，共 11 个面板。
+
 ## 打包与移植到其他平台
 
 ### 生成可移植包（Windows）
@@ -377,17 +430,25 @@ oracle-monitoring/
 
 │   ├── provisioning/               数据源 + 面板自动加载
 
-│   └── dashboards/oracle\\\\\\\_enterprise.json   企业大盘（18 面板）
+│   ├── dashboards/oracle\\\\\\\_enterprise.json   企业大盘（18 面板）
+
+│   ├── rac-dashboard.json / create_rac_dashboard.py     RAC 大盘源 + 创建脚本
+
+│   ├── dg-dashboard.json / create_dg_dashboard.py       Data Guard 大盘源 + 创建脚本
+
+│   └── article-imgs/               文档配图（面板截图）
 
 ├── collector/
 
-│   ├── oracle\\\\\\\_collector.py         指标采集器（demo/real）
+│   ├── oracle\\\\\\\_collector.py         指标采集器（demo/real，含 RAC GV$ + DG 指标）
 
 │   ├── skills\\\\\\\_engine.py            oracle/skills 技能消费引擎
 
 │   ├── alert\\\\\\\_handler.py            告警→技能 桥接服务
 
-│   ├── grants.sql                  监控账号最小权限授权
+│   ├── grants.sql                  单实例监控账号最小权限授权（含 DG 视图）
+
+│   ├── grant_rac.sql               RAC 监控账号授权（C##DB_MONITOR + GV$/DG 视图）
 
 │   ├── config.json                 采集配置
 

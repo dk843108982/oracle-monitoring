@@ -1,0 +1,41 @@
+-- RAC 数据库监控账号（CDB common user，供 collector 连接 ORCLCDB 服务）
+CREATE USER C##DB_MONITOR IDENTIFIED BY ChangeMe_2026;
+GRANT CREATE SESSION TO C##DB_MONITOR;
+GRANT SELECT ANY DICTIONARY TO C##DB_MONITOR;
+-- V$ 视图
+GRANT SELECT ON v_$instance TO C##DB_MONITOR;
+GRANT SELECT ON v_$sysstat TO C##DB_MONITOR;
+GRANT SELECT ON v_$system_event TO C##DB_MONITOR;
+GRANT SELECT ON v_$session TO C##DB_MONITOR;
+GRANT SELECT ON v_$sqlarea TO C##DB_MONITOR;
+GRANT SELECT ON dba_tablespaces TO C##DB_MONITOR;
+GRANT SELECT ON dba_data_files TO C##DB_MONITOR;
+GRANT SELECT ON dba_free_space TO C##DB_MONITOR;
+GRANT SELECT ON v_$datafile TO C##DB_MONITOR;
+GRANT SELECT ON v_$database TO C##DB_MONITOR;
+GRANT SELECT ON v_$sga TO C##DB_MONITOR;
+GRANT SELECT ON v_$pgastat TO C##DB_MONITOR;
+GRANT SELECT ON v_$log TO C##DB_MONITOR;
+GRANT SELECT ON v_$tablespace TO C##DB_MONITOR;
+GRANT SELECT ON v_$temp_space_header TO C##DB_MONITOR;
+GRANT SELECT ON v_$undostat TO C##DB_MONITOR;
+GRANT SELECT ON v_$diag_alert_ext TO C##DB_MONITOR;
+GRANT SELECT ON v_$diag_incident TO C##DB_MONITOR;
+GRANT SELECT ON v_$database_block_corruption TO C##DB_MONITOR;
+GRANT SELECT ON v_$hm_run TO C##DB_MONITOR;
+GRANT SELECT ON v_$archive_dest_status TO C##DB_MONITOR;
+GRANT SELECT ON dba_tablespace_usage_metrics TO C##DB_MONITOR;
+-- GV$ 视图（RAC 集群）
+GRANT SELECT ON gv_$instance TO C##DB_MONITOR;
+GRANT SELECT ON gv_$session TO C##DB_MONITOR;
+GRANT SELECT ON gv_$system_event TO C##DB_MONITOR;
+GRANT SELECT ON gv_$sysstat TO C##DB_MONITOR;
+GRANT SELECT ON gv_$active_services TO C##DB_MONITOR;
+EXIT;
+-- Data Guard 视图
+GRANT SELECT ON v_$dataguard_config TO C##DB_MONITOR;
+GRANT SELECT ON v_$dataguard_stats TO C##DB_MONITOR;
+GRANT SELECT ON v_$archive_gap TO C##DB_MONITOR;
+GRANT SELECT ON v_$managed_standby TO C##DB_MONITOR;
+GRANT SELECT ON v_$standby_log TO C##DB_MONITOR;
+GRANT SELECT ON v_$archive_dest TO C##DB_MONITOR;

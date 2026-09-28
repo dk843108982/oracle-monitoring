@@ -10,6 +10,48 @@
 # 本模板未在本机验证（当前环境无 Docker），首次使用时请按报错微调。
 # ============================================================
 services:
+  # ============================================================
+  # Oracle 真实实例（用于测试，生产环境请替换为真实库地址）
+  # 镜像：gvenzl/oracle-free (Oracle 23ai Free Edition)
+  # 默认端口 1521，用户 system / oracle
+  # ============================================================
+  oracle-db:
+    image: gvenzl/oracle-free:23-slim
+    container_name: oracle-db
+    ports:
+      - "1521:1521"
+    environment:
+      - ORACLE_PASSWORD=oracle
+      - APP_USER=db_monitor
+      - APP_USER_PASSWORD=ChangeMe_2026
+    volumes:
+      - oracle-db-data:/opt/oracle/oradata
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--sysdba"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # 第二个节点（模拟 RAC Node 2）
+  oracle-db2:
+    image: gvenzl/oracle-free:23-slim
+    container_name: oracle-db2
+    ports:
+      - "1522:1521"
+    environment:
+      - ORACLE_PASSWORD=oracle
+      - APP_USER=db_monitor
+      - APP_USER_PASSWORD=ChangeMe_2026
+    volumes:
+      - oracle-db2-data:/opt/oracle/oradata
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--sysdba"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   collector:
     build:
       context: ./collector
@@ -21,6 +63,9 @@ services:
       - ./collector/config.json:/app/config.json:ro
       - ./oracle-skills:/app/oracle-skills:ro
       - ./collector/reports:/app/reports
+    networks:
+      - default
+      - rac_pub1_nw   # RAC 集群 SCAN 网络（外部网络，docker network create rac_pub1_nw 预先创建）
     restart: unless-stopped
 
   prometheus:
@@ -106,6 +151,8 @@ services:
     container_name: oracle-watchalert
     ports:
       - "9002:9001"
+    volumes:
+      - ./watchalert/config.yaml:/app/config/config.yaml:ro
     environment:
       - MYSQL_HOST=watchalert-mysql
       - MYSQL_PORT=3306
@@ -135,3 +182,10 @@ volumes:
   alertmanager-data:
   grafana-data:
   watchalert-mysql-data:
+  oracle-db-data:
+  oracle-db2-data:
+
+networks:
+  rac_pub1_nw:
+    external: true
+

@@ -148,7 +148,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum{oracle_instance=~\"$oracle_instance\"}(oracle_sessions_total) by (status)",
+          "expr": "sum(oracle_sessions_total{oracle_instance=~\"$oracle_instance\"}) by (status)",
           "legendFormat": "{{status}}"
         }
       ],
@@ -160,6 +160,10 @@
         "tooltip": {
           "mode": "multi"
         }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
       }
     },
     {
@@ -281,7 +285,7 @@
     },
     {
       "id": 8,
-      "type": "table",
+      "type": "bargauge",
       "title": "表空间使用率",
       "gridPos": {
         "h": 8,
@@ -334,67 +338,31 @@
       },
       "targets": [
         {
-          "refId": "A",
-          "expr": "oracle_tablespace_used_percent{oracle_instance=~\"$oracle_instance\"}",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "{{tablespace}}"
-        },
-        {
-          "refId": "B",
-          "expr": "oracle_tablespace_total_bytes{oracle_instance=~\"$oracle_instance\"} / 1073741824",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "{{tablespace}} total"
-        },
-        {
-          "refId": "C",
-          "expr": "oracle_tablespace_free_bytes{oracle_instance=~\"$oracle_instance\"} / 1073741824",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "{{tablespace}} free"
+          "expr": "sum(oracle_tablespace_used_percent{oracle_instance=~\"$oracle_instance\"}) by (tablespace)",
+          "legendFormat": "{{tablespace}}",
+          "refId": "A"
         }
       ],
       "options": {
-        "showHeader": true,
-        "sortBy": [
-          {
-            "displayName": "Value #A",
-            "desc": true
-          }
-        ],
-        "cellHeight": "sm",
-        "footer": {
-          "show": false
+        "displayMode": "gradient",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         }
       },
-      "transformations": [
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "Value #A",
-            "rename": "使用率 %"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "Value #B",
-            "rename": "总量(GB)"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "Value #C",
-            "rename": "剩余(GB)"
-          }
-        }
-      ]
+      "transformations": []
     },
     {
       "id": 9,
@@ -604,7 +572,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum{oracle_instance=~\"$oracle_instance\"}(increase(oracle_alertlog_errors_total[5m])) by (error)",
+          "expr": "sum(increase(oracle_alertlog_errors_total{oracle_instance=~\"$oracle_instance\"}[5m])) by (error)",
           "legendFormat": "{{error}}"
         }
       ],
@@ -666,7 +634,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum{oracle_instance=~\"$oracle_instance\"}(oracle_sga_allocated_bytes)",
+          "expr": "sum(oracle_sga_allocated_bytes{oracle_instance=~\"$oracle_instance\"})",
           "legendFormat": "sga"
         }
       ],
@@ -695,12 +663,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum{oracle_instance=~\"$oracle_instance\"}(oracle_datafiles_total)",
+          "expr": "sum(oracle_datafiles_total{oracle_instance=~\"$oracle_instance\"})",
           "legendFormat": "数据文件"
         },
         {
           "refId": "B",
-          "expr": "sum{oracle_instance=~\"$oracle_instance\"}(oracle_datafiles_autoextend_total)",
+          "expr": "sum(oracle_datafiles_autoextend_total{oracle_instance=~\"$oracle_instance\"})",
           "legendFormat": "自动扩展"
         }
       ],
@@ -1360,7 +1328,7 @@
             "showPoints": "never",
             "spanNulls": false
           },
-          "unit": "decmbytes",
+          "unit": "bytes",
           "decimals": 1
         },
         "overrides": []
@@ -1405,7 +1373,7 @@
             "showPoints": "never",
             "spanNulls": false
           },
-          "unit": "decmbytes",
+          "unit": "bytes",
           "decimals": 2
         },
         "overrides": []
@@ -1642,21 +1610,6 @@
           "value": "$__all"
         },
         "refresh": 1
-      },
-      {
-        "name": "tablespace",
-        "type": "query",
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "query": {
-          "query": "label_values(oracle_tablespace_used_percent{oracle_instance=~\"$oracle_instance\"}, tablespace)",
-          "refId": "A"
-        },
-        "label": "表空间",
-        "includeAll": true,
-        "multi": true
       }
     ]
   },

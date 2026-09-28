@@ -164,15 +164,25 @@ METRIC_HEADER = (
 SKILL_SQL = {
     # db/monitoring/space-management.md — 主表空间监控查询
     "tablespace": """
-        SELECT m.tablespace_name,
-               ROUND(m.tablespace_size * t.block_size / 1073741824, 2) AS total_gb,
-               ROUND(m.used_space * t.block_size / 1073741824, 2)      AS used_gb,
-               ROUND(m.free_space * t.block_size / 1073741824, 2)      AS free_gb,
-               ROUND(m.used_percent, 1)                                AS used_pct,
-               t.contents
-        FROM   dba_tablespace_usage_metrics m
-        JOIN   dba_tablespaces              t ON m.tablespace_name = t.tablespace_name
-        ORDER BY m.used_percent DESC
+        SELECT 
+            d.tablespace_name,
+            ROUND(SUM(d.bytes) / 1073741824, 2) AS total_gb,
+            ROUND(SUM(d.bytes - NVL(f.free_bytes, 0)) / 1073741824, 2) AS used_gb,
+            ROUND(SUM(NVL(f.free_bytes, 0)) / 1073741824, 2) AS free_gb,
+            CASE WHEN SUM(d.bytes) > 0 
+                 THEN ROUND(100 * (SUM(d.bytes - NVL(f.free_bytes, 0)) / SUM(d.bytes)), 1)
+                 ELSE 0 END AS used_pct,
+            t.contents
+        FROM dba_data_files d
+        LEFT JOIN (
+            SELECT tablespace_name, SUM(bytes) AS free_bytes
+            FROM dba_free_space
+            GROUP BY tablespace_name
+        ) f ON d.tablespace_name = f.tablespace_name
+        JOIN dba_tablespaces t ON d.tablespace_name = t.tablespace_name
+        WHERE d.bytes > 0
+        GROUP BY d.tablespace_name, t.contents
+        ORDER BY used_pct DESC
     """,
     # db/monitoring/space-management.md — 数据文件 / 自动扩展 / 最大上限
     "datafiles": """
@@ -295,6 +305,64 @@ SKILL_SQL = {
         FROM   v$sysstat blk, v$sysstat phy
         WHERE  blk.name = 'consistent gets'
         AND    phy.name = 'physical reads'
+    """,
+    "fra_usage": "SELECT ROUND(SUM(percent_space_used), 2) AS used_pct FROM v$flash_recovery_area_usage",
+    "lock_waits": "SELECT COUNT(*) AS cnt FROM v$session WHERE lockwait IS NOT NULL",
+    "job_queue": "SELECT COUNT(*) AS cnt FROM dba_jobs WHERE broken = 'N'",
+    "flashback": "SELECT flashback_on FROM v$database",
+    "dataguard": "SELECT protection_mode, protection_level FROM v$database",
+    "pga_stats": "SELECT name, value FROM v$pgastat WHERE name IN ('total PGA allocated', 'total PGA inuse')",
+    "sort_stats": "SELECT name, value FROM v$sysstat WHERE name IN ('sorts (memory)', 'sorts (disk)', 'sort rows')",
+    "io_stats": "SELECT name, value FROM v$sysstat WHERE name IN ('physical reads', 'physical writes', 'physical read bytes', 'physical write bytes')",
+    "txn_stats": "SELECT name, value FROM v$sysstat WHERE name IN ('user commits', 'user rollbacks')",
+    "cpu_stats": "SELECT name, value FROM v$sysstat WHERE name IN ('CPU used by this session', 'DB CPU')",
+    "login_stats": "SELECT name, value FROM v$sysstat WHERE name IN ('logons cumulative', 'logons current')",
+    "dict_cache": "SELECT ROUND((1 - (sum(getmisses) / sum(gets))) * 100, 2) AS hit_ratio FROM v$rowcache",
+    "recursive_calls": "SELECT name, value FROM v$sysstat WHERE name = 'recursive calls'",
+    "enqueue_stats": "SELECT eq_type, total_wait# AS total_waits, cum_wait_time FROM v$enqueue_stat WHERE total_wait# > 0 ORDER BY total_wait# DESC FETCH FIRST 10 ROWS ONLY",
+    "buffer_busy": "SELECT COUNT(*) AS cnt FROM v$waitstat WHERE class LIKE '%free%' OR class LIKE '%busy%'",
+    "sql_version_count": "SELECT COUNT(*) AS cnt FROM v$sqlarea WHERE version_count > 5",
+    # ---- RAC / Cluster 指标（GV$ 视图，带 inst_id） ----
+    "rac_instance": "SELECT inst_id, instance_name, host_name, status, TO_CHAR(startup_time, 'YYYY-MM-DD HH24:MI:SS') AS startup_time FROM gv$instance",
+    "rac_sessions": "SELECT inst_id, status, COUNT(*) AS cnt FROM gv$session GROUP BY inst_id, status ORDER BY inst_id, status",
+    "rac_wait_events": "SELECT inst_id, event, wait_class, time_waited/100 AS time_waited_sec, total_waits FROM gv$system_event WHERE wait_class <> 'Idle' ORDER BY time_waited DESC FETCH FIRST 20 ROWS ONLY",
+    "rac_cache_transfer": "SELECT inst_id, name, value FROM gv$sysstat WHERE name IN ('gc cr blocks served','gc current blocks served','gc cr blocks received','gc current blocks received','gc cr block receive time','gc current block receive time')",
+    "rac_dlm": "SELECT inst_id, name, value FROM gv$sysstat WHERE name LIKE 'gcs %' OR name LIKE 'ges %'",
+    # ---- Data Guard 指标（主/备库通用，V$DATAGUARD 等） ----
+    "dg_database": """
+        SELECT database_role, protection_mode, protection_level, open_mode,
+               guard_status, db_unique_name, log_mode, force_logging
+        FROM   v$database
+    """,
+    "dg_config": """
+        SELECT db_unique_name, role
+        FROM   v$dataguard_config
+        ORDER  BY role, db_unique_name
+    """,
+    "dg_dest_status": """
+        SELECT dest_id, destination, status, type, db_unique_name,
+               gap_status, NVL(error, '') AS error
+        FROM   v$archive_dest_status
+        ORDER  BY dest_id
+    """,
+    "dg_stats": """
+        SELECT name, value
+        FROM   v$dataguard_stats
+        WHERE  name IN ('transport lag', 'apply lag', 'apply finish time')
+    """,
+    "dg_managed_standby": """
+        SELECT process, status, client_process, thread#
+        FROM   v$managed_standby
+        ORDER  BY process
+    """,
+    "dg_archive_gap": """
+        SELECT thread#, low_sequence#, high_sequence#
+        FROM   v$archive_gap
+    """,
+    "dg_standby_log": """
+        SELECT group#, thread#, status, ROUND(bytes / 1073741824, 2) AS size_gb
+        FROM   v$standby_log
+        ORDER  BY group#
     """,
 }
 
@@ -511,6 +579,25 @@ class OracleCollector:
         lbl = ",".join(f'{k}="{str(v).replace(chr(34), chr(39))}"' for k, v in labels.items())
         return f"{name}{{{lbl}}} {value}\n"
 
+    @staticmethod
+    def _dg_interval_to_seconds(value):
+        """解析 Data Guard 滞后值（'+00 00:00:00' 或纯数字秒）为秒数；无法解析返回 None。"""
+        if value is None:
+            return None
+        s = str(value).strip()
+        if not s or s.lower() in ("null", "n/a", "-", "+00 00:00:00"):
+            return 0.0
+        if s.replace(".", "", 1).isdigit():
+            return float(s)
+        try:
+            parts = s.split()
+            days = int(parts[0]) if parts and parts[0].lstrip("+").isdigit() else 0
+            hms = parts[1] if len(parts) > 1 else "00:00:00"
+            h, m, sec = (int(x) for x in hms.split(":"))
+            return float(days * 86400 + h * 3600 + m * 60 + sec)
+        except Exception:
+            return None
+
     def _emit_tablespace(self, lines, name, contents, total_gb, used_gb, free_gb,
                          pct, max_gb=None, autoextend=None):
         total_b = total_gb * 1073741824
@@ -530,6 +617,10 @@ class OracleCollector:
         if autoextend is not None:
             lines.append(self._fmt_gauge("oracle_tablespace_autoextend_status",
                                          {"tablespace": name}, 1 if autoextend else 0))
+        # 估算剩余天数（假设每天增长 100MB）
+        free_days = (free_b / (100 * 1024 * 1024)) if free_b > 0 else 0
+        lines.append(self._fmt_gauge("oracle_tablespace_free_days",
+                                     {"tablespace": name}, round(free_days, 1)))
 
     def _scrape_demo(self):
         lines = [METRIC_HEADER]
@@ -636,7 +727,7 @@ class OracleCollector:
             try:
                 self._scrape_one_real(lines, inst_name)
             except Exception as e:
-                lines.append(f"# instance {inst_name} error: {e}\n")
+                print(f"[error] instance {inst_name} scrape failed: {e}", file=sys.stderr)
                 lines.append(f"oracle_up{{oracle_instance=\"{inst_name}\"}} 0\n")
         return "".join(lines)
 
@@ -656,6 +747,7 @@ class OracleCollector:
             if inst.get("uptime_sec") is not None:
                 lines.append(self._fmt_gauge("oracle_instance_uptime_seconds",
                                              {}, inst["uptime_sec"]))
+            lines.append(self._fmt_gauge("oracle_up", {}, 1))
         for key, sql in (("redo_switches", SKILL_SQL["redo_switches"]),
                          ("sessions_blocked", SKILL_SQL["sessions_blocked"]),
                          ("long_running", SKILL_SQL["long_running"]),
@@ -683,117 +775,149 @@ class OracleCollector:
             for k, v in svals.items():
                 lines.append(self._fmt_gauge("oracle_sysstat_total", {"name": k}, v))
             hard = svals.get("parse count (hard)", 0)
-            total = svals.get("parse count total", 0)
+            total = svals.get("execute count", 0)
             if total:
                 lines.append(self._fmt_gauge("oracle_hard_parse_ratio", {},
-                                             100.0 * hard / total))
+                                             round(100.0 * hard / total, 2)))
         except Exception:
             pass
 
         # ---- tablespace ----
-        cols, rows = self.run_query(inst_name, SKILL_SQL["tablespace"])
-        for r in rows:
-            d = dict(zip(cols, r))
-            name = d["tablespace_name"]
-            total = float(d["total_gb"] or 0)
-            used = float(d["used_gb"] or 0)
-            free = float(d["free_gb"] or 0)
-            pct = float(d["used_pct"] or 0)
-            self._emit_tablespace(lines, name, d.get("contents", ""),
-                                  total, used, free, pct)
-            if d.get("contents") == "TEMPORARY":
-                lines.append(self._fmt_gauge("oracle_temp_used_percent", {}, pct))
-            if d.get("contents") == "UNDO":
-                lines.append(self._fmt_gauge("oracle_undo_used_percent", {}, pct))
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["tablespace"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                name = d["tablespace_name"]
+                total = float(d["total_gb"] or 0)
+                used = float(d["used_gb"] or 0)
+                free = float(d["free_gb"] or 0)
+                pct = float(d["used_pct"] or 0)
+                # 总大小为 0 时跳过，避免除零错误
+                if total <= 0:
+                    continue
+                self._emit_tablespace(lines, name, d.get("contents", ""),
+                                      total, used, free, pct)
+                if d.get("contents") == "TEMPORARY":
+                    lines.append(self._fmt_gauge("oracle_temp_used_percent", {}, pct))
+                if d.get("contents") == "UNDO":
+                    lines.append(self._fmt_gauge("oracle_undo_used_percent", {}, pct))
+        except Exception as e:
+            print(f"[warn] tablespace scrape failed: {e}", file=sys.stderr)
+
         # datafiles / maxbytes / autoextend
-        cols, rows = self.run_query(inst_name, SKILL_SQL["datafiles"])
-        for r in rows:
-            d = dict(zip(cols, r))
-            name = d["tablespace_name"]
-            lines.append(self._fmt_gauge("oracle_datafiles_total",
-                                         {"tablespace": name}, d["file_cnt"]))
-            lines.append(self._fmt_gauge("oracle_datafiles_autoextend_total",
-                                         {"tablespace": name}, d["auto_cnt"]))
-            if d["max_bytes"]:
-                lines.append(self._fmt_gauge("oracle_tablespace_maxbytes_bytes",
-                                             {"tablespace": name}, d["max_bytes"]))
-            lines.append(self._fmt_gauge("oracle_tablespace_autoextend_status",
-                                         {"tablespace": name}, 1 if d["auto_cnt"] else 0))
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["datafiles"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                name = d["tablespace_name"]
+                lines.append(self._fmt_gauge("oracle_datafiles_total",
+                                             {"tablespace": name}, d["file_cnt"]))
+                lines.append(self._fmt_gauge("oracle_datafiles_autoextend_total",
+                                             {"tablespace": name}, d["auto_cnt"]))
+                if d["max_bytes"]:
+                    lines.append(self._fmt_gauge("oracle_tablespace_maxbytes_bytes",
+                                                 {"tablespace": name}, d["max_bytes"]))
+                lines.append(self._fmt_gauge("oracle_tablespace_autoextend_status",
+                                             {"tablespace": name}, 1 if d["auto_cnt"] else 0))
+        except Exception as e:
+            print(f"[warn] datafiles scrape failed: {e}", file=sys.stderr)
 
         # ---- sessions ----
-        cols, rows = self.run_query(inst_name, SKILL_SQL["sessions"])
-        for r in rows:
-            d = dict(zip(cols, r))
-            lines.append(self._fmt_gauge("oracle_sessions_total",
-                                         {"status": d["status"]}, d["cnt"]))
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["sessions"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge("oracle_sessions_total",
+                                             {"status": d["status"]}, d["cnt"]))
+        except Exception as e:
+            print(f"[warn] sessions scrape failed: {e}", file=sys.stderr)
 
         # ---- wait events ----
-        cols, rows = self.run_query(inst_name, SKILL_SQL["wait_events"])
-        for r in rows:
-            d = dict(zip(cols, r))
-            secs = d["time_waited_sec"]
-            waits = d["total_waits"]
-            avg = round(secs * 1000 / max(1, waits), 2)
-            lines.append(self._fmt_gauge("oracle_wait_event_seconds",
-                                         {"event": d["event"], "wait_class": d.get("wait_class", "")},
-                                         secs))
-            lines.append(self._fmt_gauge("oracle_wait_event_total_waits",
-                                         {"event": d["event"], "wait_class": d.get("wait_class", "")},
-                                         waits))
-            lines.append(self._fmt_gauge("oracle_wait_event_avg_milliseconds",
-                                         {"event": d["event"], "wait_class": d.get("wait_class", "")},
-                                         avg))
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["wait_events"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                secs = d["time_waited_sec"]
+                waits = d["total_waits"]
+                avg = round(secs * 1000 / max(1, waits), 2)
+                lines.append(self._fmt_gauge("oracle_wait_event_seconds",
+                                             {"event": d["event"], "wait_class": d.get("wait_class", "")},
+                                             secs))
+                lines.append(self._fmt_gauge("oracle_wait_event_total_waits",
+                                             {"event": d["event"], "wait_class": d.get("wait_class", "")},
+                                             waits))
+                lines.append(self._fmt_gauge("oracle_wait_event_avg_milliseconds",
+                                             {"event": d["event"], "wait_class": d.get("wait_class", "")},
+                                             avg))
+        except Exception as e:
+            print(f"[warn] wait_events scrape failed: {e}", file=sys.stderr)
 
         # ---- top sql ----
-        cols, rows = self.run_query(inst_name, SKILL_SQL["top_sql"])
-        for r in rows:
-            d = dict(zip(cols, r))
-            lbl = {"sql_id": d["sql_id"], "schema": d.get("parsing_schema_name", ""),
-                   "sql_text": str(d.get("sql_preview", ""))[:60]}
-            lines.append(self._fmt_gauge("oracle_top_sql_elapsed_seconds", lbl,
-                                         d["total_elapsed_sec"]))
-            lines.append(self._fmt_gauge("oracle_top_sql_cpu_seconds", lbl,
-                                         d["total_cpu_sec"]))
-            lines.append(self._fmt_gauge("oracle_top_sql_executions_total", lbl,
-                                         d["executions"]))
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["top_sql"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lbl = {"sql_id": d["sql_id"], "schema": d.get("parsing_schema_name", ""),
+                       "sql_text": str(d.get("sql_preview", ""))[:60]}
+                lines.append(self._fmt_gauge("oracle_top_sql_elapsed_seconds", lbl,
+                                             d["total_elapsed_sec"]))
+                lines.append(self._fmt_gauge("oracle_top_sql_cpu_seconds", lbl,
+                                             d["total_cpu_sec"]))
+                lines.append(self._fmt_gauge("oracle_top_sql_executions_total", lbl,
+                                             d["executions"]))
+        except Exception as e:
+            print(f"[warn] top_sql scrape failed: {e}", file=sys.stderr)
 
         # ---- alert log ----
-        cols, rows = self.run_query(inst_name, SKILL_SQL["alert_log"])
-        err_count = {}
-        for r in rows:
-            d = dict(zip(cols, r))
-            m = re.search(r"(ORA-\d{5})", str(d.get("message_text", "")))
-            key = m.group(1) if m else "ORA-UNKNOWN"
-            err_count[key] = err_count.get(key, 0) + 1
-        for key, cnt in err_count.items():
-            lines.append(self._fmt_gauge("oracle_alertlog_errors_total", {"error": key}, cnt))
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["alert_log"])
+            err_count = {}
+            for r in rows:
+                d = dict(zip(cols, r))
+                m = re.search(r"(ORA-\d{5})", str(d.get("message_text", "")))
+                key = m.group(1) if m else "ORA-UNKNOWN"
+                err_count[key] = err_count.get(key, 0) + 1
+            for key, cnt in err_count.items():
+                lines.append(self._fmt_gauge("oracle_alertlog_errors_total", {"error": key}, cnt))
+        except Exception as e:
+            print(f"[warn] alert_log scrape failed: {e}", file=sys.stderr)
 
         # ---- archive ----
-        cols, rows = self.run_query(inst_name, SKILL_SQL["archive_dest"])
-        arch_ok = 1
-        for r in rows:
-            d = dict(zip(cols, r))
-            if "FAILED" in str(d.get("error", "")):
-                arch_ok = 0
-        lines.append(self._fmt_gauge("oracle_archiver_status", {}, arch_ok))
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["archive_dest"])
+            arch_ok = 1
+            for r in rows:
+                d = dict(zip(cols, r))
+                if "FAILED" in str(d.get("error", "")):
+                    arch_ok = 0
+            lines.append(self._fmt_gauge("oracle_archiver_status", {}, arch_ok))
+        except Exception as e:
+            print(f"[warn] archive_dest scrape failed: {e}", file=sys.stderr)
         try:
             cols, rows = self.run_query(inst_name, SKILL_SQL["archive_lag"])
-            if rows:
+            if rows and rows[0][0] is not None:
                 lines.append(self._fmt_gauge("oracle_archive_lag_seconds", {}, rows[0][0]))
             cols, rows = self.run_query(inst_name, SKILL_SQL["backup_age"])
-            if rows:
+            if rows and rows[0][0] is not None:
                 lines.append(self._fmt_gauge("oracle_backup_age_days", {},
                                              rows[0][0] / 24.0))
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[warn] archive/backup scrape failed: {e}", file=sys.stderr)
 
         # ---- memory ----
         try:
             cols, rows = self.run_query(inst_name, SKILL_SQL["buffer_cache"])
             if rows:
                 lines.append(self._fmt_gauge("oracle_buffer_cache_hit_ratio", {}, rows[0][0]))
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[warn] buffer_cache scrape failed: {e}", file=sys.stderr)
+        # library cache hit ratio (from sysstat)
+        try:
+            lib_hit = svals.get("library cache hit ratio", None)
+            if lib_hit is not None:
+                lines.append(self._fmt_gauge("oracle_library_cache_hit_ratio", {}, round(lib_hit, 2)))
+        except Exception as e:
+            print(f"[warn] library_cache hit ratio failed: {e}", file=sys.stderr)
         try:
             cols, rows = self.run_query(inst_name, SKILL_SQL["shared_pool_free"])
             if rows:
@@ -812,8 +936,317 @@ class OracleCollector:
                 d = dict(zip(cols, r))
                 lines.append(self._fmt_gauge("oracle_sga_allocated_bytes",
                                              {"pool": d["pool"]}, d["bytes"]))
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[warn] sga scrape failed: {e}", file=sys.stderr)
+
+        # ---- Flash Recovery Area ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["fra_usage"])
+            if rows and rows[0][0] is not None:
+                lines.append(self._fmt_gauge("oracle_fra_used_percent", {}, rows[0][0]))
+        except Exception as e:
+            print(f"[warn] fra scrape failed: {e}", file=sys.stderr)
+
+        # ---- 锁等待 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["lock_waits"])
+            if rows:
+                lines.append(self._fmt_gauge("oracle_lock_wait_total", {}, rows[0][0]))
+        except Exception as e:
+            print(f"[warn] lock_waits scrape failed: {e}", file=sys.stderr)
+
+        # ---- 后台作业 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["job_queue"])
+            if rows:
+                lines.append(self._fmt_gauge("oracle_jobs_enabled_total", {}, rows[0][0]))
+        except Exception as e:
+            print(f"[warn] job_queue scrape failed: {e}", file=sys.stderr)
+
+        # ---- 闪回状态 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["flashback"])
+            if rows:
+                status = 1 if "ON" in str(rows[0][0]) else 0
+                lines.append(self._fmt_gauge("oracle_flashback_enabled", {}, status))
+        except Exception as e:
+            print(f"[warn] flashback scrape failed: {e}", file=sys.stderr)
+
+        # ---- Data Guard 状态 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["dataguard"])
+            if rows:
+                d = dict(zip(cols, rows[0]))
+                lines.append(self._fmt_gauge("oracle_dataguard_protection_mode",
+                                             {"mode": str(d.get("protection_mode", ""))[:30]}, 1))
+        except Exception as e:
+            print(f"[warn] dataguard scrape failed: {e}", file=sys.stderr)
+
+        # ---- PGA 详细统计 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["pga_stats"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge("oracle_pga_bytes",
+                                             {"name": str(d["name"])[:40]}, d["value"]))
+        except Exception as e:
+            print(f"[warn] pga_stats scrape failed: {e}", file=sys.stderr)
+
+        # ---- 排序统计 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["sort_stats"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge("oracle_sort_total",
+                                             {"type": str(d["name"])[:30]}, d["value"]))
+        except Exception as e:
+            print(f"[warn] sort_stats scrape failed: {e}", file=sys.stderr)
+
+        # ---- IO 统计 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["io_stats"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge("oracle_io_bytes",
+                                             {"type": str(d["name"])[:40]}, d["value"]))
+        except Exception as e:
+            print(f"[warn] io_stats scrape failed: {e}", file=sys.stderr)
+
+        # ---- 事务统计 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["txn_stats"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge("oracle_txn_total",
+                                             {"type": str(d["name"])[:30]}, d["value"]))
+        except Exception as e:
+            print(f"[warn] txn_stats scrape failed: {e}", file=sys.stderr)
+
+        # ---- CPU 统计 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["cpu_stats"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge("oracle_cpu_seconds",
+                                             {"type": str(d["name"])[:40]}, d["value"] / 100))
+        except Exception as e:
+            print(f"[warn] cpu_stats scrape failed: {e}", file=sys.stderr)
+
+        # ---- 登录统计 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["login_stats"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge("oracle_login_total",
+                                             {"type": str(d["name"])[:30]}, d["value"]))
+        except Exception as e:
+            print(f"[warn] login_stats scrape failed: {e}", file=sys.stderr)
+
+        # ---- 字典缓存命中率 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["dict_cache"])
+            if rows and rows[0][0] is not None:
+                lines.append(self._fmt_gauge("oracle_dict_cache_hit_ratio", {}, rows[0][0]))
+        except Exception as e:
+            print(f"[warn] dict_cache scrape failed: {e}", file=sys.stderr)
+
+        # ---- 递归调用 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["recursive_calls"])
+            if rows:
+                d = dict(zip(cols, rows[0]))
+                lines.append(self._fmt_gauge("oracle_recursive_calls_total", {}, d["value"]))
+        except Exception as e:
+            print(f"[warn] recursive_calls scrape failed: {e}", file=sys.stderr)
+
+        # ---- Enqueue 等待统计 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["enqueue_stats"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge("oracle_enqueue_waits_total",
+                                             {"type": str(d["eq_type"])}, d["total_waits"]))
+        except Exception as e:
+            print(f"[warn] enqueue_stats scrape failed: {e}", file=sys.stderr)
+
+        # ---- 缓冲区忙等待 ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["buffer_busy"])
+            if rows:
+                lines.append(self._fmt_gauge("oracle_buffer_busy_total", {}, rows[0][0]))
+        except Exception as e:
+            print(f"[warn] buffer_busy scrape failed: {e}", file=sys.stderr)
+
+        # ---- SQL 版本数（执行计划变化） ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["sql_version_count"])
+            if rows:
+                lines.append(self._fmt_gauge("oracle_sql_version_mismatch_total", {}, rows[0][0]))
+        except Exception as e:
+            print(f"[warn] sql_version_count scrape failed: {e}", file=sys.stderr)
+
+        # ---- RAC / 集群指标（GV$ 视图） ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["rac_instance"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge("oracle_rac_instance_up",
+                                             {"inst_id": str(d["inst_id"]),
+                                              "instance_name": str(d["instance_name"]),
+                                              "host": str(d["host_name"]),
+                                              "status": str(d["status"])}, 1))
+        except Exception as e:
+            print(f"[warn] rac_instance scrape failed: {e}", file=sys.stderr)
+
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["rac_sessions"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge("oracle_rac_sessions_total",
+                                             {"inst_id": str(d["inst_id"]),
+                                              "status": str(d["status"])}, d["cnt"]))
+        except Exception as e:
+            print(f"[warn] rac_sessions scrape failed: {e}", file=sys.stderr)
+
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["rac_wait_events"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge("oracle_rac_wait_event_seconds",
+                                             {"inst_id": str(d["inst_id"]),
+                                              "event": str(d["event"]),
+                                              "wait_class": str(d["wait_class"])},
+                                             d["time_waited_sec"]))
+        except Exception as e:
+            print(f"[warn] rac_wait_events scrape failed: {e}", file=sys.stderr)
+
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["rac_cache_transfer"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge("oracle_rac_cache_transfer",
+                                             {"inst_id": str(d["inst_id"]),
+                                              "metric": str(d["name"])}, d["value"]))
+        except Exception as e:
+            print(f"[warn] rac_cache_transfer scrape failed: {e}", file=sys.stderr)
+
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["rac_dlm"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge("oracle_rac_dlm_stats",
+                                             {"inst_id": str(d["inst_id"]),
+                                              "name": str(d["name"])}, d["value"]))
+        except Exception as e:
+            print(f"[warn] rac_dlm scrape failed: {e}", file=sys.stderr)
+
+        # ---- Data Guard 指标（主/备库通用） ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["dg_database"])
+            if rows:
+                d = dict(zip(cols, rows[0]))
+                role = str(d.get("database_role", ""))
+                role_val = {"PRIMARY": 1, "PHYSICAL STANDBY": 2,
+                            "SNAPSHOT STANDBY": 3, "LOGICAL STANDBY": 4}.get(role, 0)
+                lines.append(self._fmt_gauge(
+                    "oracle_dg_role",
+                    {"role": role, "db_unique_name": str(d.get("db_unique_name", ""))}, role_val))
+                lines.append(self._fmt_gauge("oracle_dg_protection_mode",
+                                             {"protection_mode": str(d.get("protection_mode", ""))}, 1))
+                lines.append(self._fmt_gauge("oracle_dg_protection_level",
+                                             {"protection_level": str(d.get("protection_level", ""))}, 1))
+                lines.append(self._fmt_gauge("oracle_dg_open_mode",
+                                             {"open_mode": str(d.get("open_mode", ""))}, 1))
+                lines.append(self._fmt_gauge("oracle_dg_guard_status",
+                                             {"guard_status": str(d.get("guard_status", ""))}, 1))
+                lines.append(self._fmt_gauge("oracle_dg_log_mode",
+                                             {"log_mode": str(d.get("log_mode", ""))}, 1))
+                lines.append(self._fmt_gauge("oracle_dg_force_logging",
+                                             {"force_logging": str(d.get("force_logging", ""))}, 1))
+        except Exception as e:
+            print(f"[warn] dg_database scrape failed: {e}", file=sys.stderr)
+
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["dg_config"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge(
+                    "oracle_dg_config_info",
+                    {"db_unique_name": str(d["db_unique_name"]), "role": str(d["role"])}, 1))
+        except Exception as e:
+            print(f"[warn] dg_config scrape failed: {e}", file=sys.stderr)
+
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["dg_dest_status"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                dest = str(d.get("destination") or "")[:40]
+                dbun = str(d.get("db_unique_name") or "")
+                err = str(d.get("error") or "").strip()
+                lines.append(self._fmt_gauge(
+                    "oracle_dg_dest_status",
+                    {"dest_id": str(d.get("dest_id", "")), "destination": dest,
+                     "status": str(d.get("status", "")), "type": str(d.get("type", "")),
+                     "db_unique_name": dbun, "gap_status": str(d.get("gap_status") or "")}, 1))
+                if err and err.lower() != "none":
+                    lines.append(self._fmt_gauge(
+                        "oracle_dg_dest_error",
+                        {"destination": dest, "db_unique_name": dbun,
+                         "error": err[:60]}, 1))
+        except Exception as e:
+            print(f"[warn] dg_dest_status scrape failed: {e}", file=sys.stderr)
+
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["dg_stats"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                secs = self._dg_interval_to_seconds(d["value"])
+                if secs is None:
+                    continue
+                mname = {"transport lag": "oracle_dg_transport_lag_seconds",
+                         "apply lag": "oracle_dg_apply_lag_seconds",
+                         "apply finish time": "oracle_dg_apply_finish_seconds"}.get(str(d["name"]))
+                if mname:
+                    lines.append(self._fmt_gauge(mname, {}, secs))
+        except Exception as e:
+            print(f"[warn] dg_stats scrape failed: {e}", file=sys.stderr)
+
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["dg_managed_standby"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge(
+                    "oracle_dg_mrp_status",
+                    {"process": str(d["process"]), "status": str(d["status"]),
+                     "client_process": str(d.get("client_process", "")),
+                     "thread": str(d.get("thread#", ""))}, 1))
+        except Exception as e:
+            print(f"[warn] dg_managed_standby scrape failed: {e}", file=sys.stderr)
+
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["dg_archive_gap"])
+            if rows:
+                lines.append(self._fmt_gauge("oracle_dg_archive_gap_total", {}, len(rows)))
+                for r in rows:
+                    d = dict(zip(cols, r))
+                    lines.append(self._fmt_gauge(
+                        "oracle_dg_archive_gap",
+                        {"thread": str(d.get("thread#", "")),
+                         "low_seq": str(d.get("low_sequence#", "")),
+                         "high_seq": str(d.get("high_sequence#", ""))}, 1))
+        except Exception as e:
+            print(f"[warn] dg_archive_gap scrape failed: {e}", file=sys.stderr)
+
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["dg_standby_log"])
+            for r in rows:
+                d = dict(zip(cols, r))
+                lines.append(self._fmt_gauge(
+                    "oracle_dg_standby_log",
+                    {"group": str(d["group#"]), "thread": str(d.get("thread#", "")),
+                     "status": str(d.get("status", ""))}, d["size_gb"]))
+        except Exception as e:
+            print(f"[warn] dg_standby_log scrape failed: {e}", file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
@@ -902,3 +1335,5 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+

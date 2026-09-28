@@ -1,0 +1,398 @@
+{
+  "dashboard": {
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "links": [],
+    "panels": [
+      {
+        "collapsed": false,
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+        "id": 1,
+        "panels": [],
+        "title": "集群实例总览",
+        "type": "row"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "mappings": [
+              {
+                "options": { "0": { "color": "red", "text": "DOWN" }, "1": { "color": "green", "text": "UP" } },
+                "type": "value"
+              }
+            ],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": 0 }, { "color": "green", "value": 1 } ] }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+        "id": 2,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "percentChangeColorMode": "standard",
+          "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false },
+          "showPercentChange": false,
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "expr": "oracle_rac_instance_up{oracle_instance=~\"$oracle_instance\"}",
+            "legendFormat": "{{instance_name}}",
+            "refId": "A"
+          }
+        ],
+        "title": "集群实例状态",
+        "type": "stat"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 4, "w": 10, "x": 6, "y": 1 },
+        "id": 3,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "percentChangeColorMode": "standard",
+          "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false },
+          "showPercentChange": false,
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "expr": "oracle_rac_instance_up{oracle_instance=~\"$oracle_instance\"}",
+            "format": "table",
+            "instant": true,
+            "legendFormat": "{{instance_name}}",
+            "refId": "A"
+          }
+        ],
+        "title": "实例清单",
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": { "Time": true, "__name__": true, "job": true, "db": true, "env": true, "instance": true },
+              "renameByName": {
+                "Value": "状态",
+                "host": "主机",
+                "inst_id": "实例号",
+                "instance_name": "实例名",
+                "oracle_instance": "监控实例",
+                "status": "状态"
+              }
+            }
+          }
+        ],
+        "type": "table"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "barWidthFactor": 0.6,
+              "drawStyle": "line",
+              "fillOpacity": 15,
+              "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false,
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": { "type": "linear" },
+              "showPoints": "never",
+              "showValues": false,
+              "spanNulls": false,
+              "stacking": { "group": "A", "mode": "normal" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] },
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+        "id": 4,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "multi", "sort": "none" }
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "expr": "sum(oracle_rac_sessions_total{oracle_instance=~\"$oracle_instance\"}) by (inst_id, status)",
+            "legendFormat": "inst{{inst_id}} {{status}}",
+            "refId": "A"
+          }
+        ],
+        "title": "各实例会话（按状态）",
+        "type": "timeseries"
+      },
+      {
+        "collapsed": false,
+        "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+        "id": 5,
+        "panels": [],
+        "title": "集群等待与通信",
+        "type": "row"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 }, { "color": "yellow", "value": 3600 }, { "color": "red", "value": 7200 } ] },
+            "unit": "s"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+        "id": 6,
+        "options": {
+          "displayMode": "gradient",
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+          "maxVizHeight": 300,
+          "minVizHeight": 16,
+          "minVizWidth": 8,
+          "namePlacement": "auto",
+          "orientation": "horizontal",
+          "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false },
+          "showUnfilled": true,
+          "sizing": "auto",
+          "text": { "valueSize": 12 },
+          "valueMode": "color"
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "expr": "topk(8, oracle_rac_wait_event_seconds{oracle_instance=~\"$oracle_instance\"})",
+            "legendFormat": "inst{{inst_id}} {{event}}",
+            "refId": "A"
+          }
+        ],
+        "title": "Top 集群等待事件（累计秒）",
+        "type": "bargauge"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "barWidthFactor": 0.6,
+              "drawStyle": "line",
+              "fillOpacity": 15,
+              "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false,
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": { "type": "linear" },
+              "showPoints": "never",
+              "showValues": false,
+              "spanNulls": false,
+              "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] },
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+        "id": 7,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "multi", "sort": "none" }
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "expr": "sum(oracle_rac_wait_event_seconds{oracle_instance=~\"$oracle_instance\"}) by (wait_class)",
+            "legendFormat": "{{wait_class}}",
+            "refId": "A"
+          }
+        ],
+        "title": "等待事件按类聚合（累计秒）",
+        "type": "timeseries"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "barWidthFactor": 0.6,
+              "drawStyle": "line",
+              "fillOpacity": 15,
+              "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false,
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": { "type": "linear" },
+              "showPoints": "never",
+              "showValues": false,
+              "spanNulls": false,
+              "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] },
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+        "id": 8,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "multi", "sort": "none" }
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "expr": "increase(oracle_rac_cache_transfer{metric=~\"gc (cr|current) blocks (served|received)\",oracle_instance=~\"$oracle_instance\"}[5m])",
+            "legendFormat": "{{metric}} inst{{inst_id}}",
+            "refId": "A"
+          }
+        ],
+        "title": "Cache Fusion 块传输速率（5m 增量）",
+        "type": "timeseries"
+      },
+      {
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "barWidthFactor": 0.6,
+              "drawStyle": "line",
+              "fillOpacity": 15,
+              "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false,
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": { "type": "linear" },
+              "showPoints": "never",
+              "showValues": false,
+              "spanNulls": false,
+              "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 } ] },
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+        "id": 9,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "multi", "sort": "none" }
+        },
+        "pluginVersion": "12.4.2",
+        "targets": [
+          {
+            "expr": "increase(oracle_rac_dlm_stats{name=~\"gcs messages sent|ges messages sent\",oracle_instance=~\"$oracle_instance\"}[5m])",
+            "legendFormat": "{{name}} inst{{inst_id}}",
+            "refId": "A"
+          }
+        ],
+        "title": "DLM 消息速率（5m 增量）",
+        "type": "timeseries"
+      }
+    ],
+    "preload": false,
+    "refresh": "30s",
+    "schemaVersion": 42,
+    "tags": [ "oracle", "rac", "cluster" ],
+    "templating": {
+      "list": [
+        {
+          "allValue": ".*",
+          "current": { "text": "All", "value": "$__all" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "includeAll": true,
+          "label": "数据库实例",
+          "multi": true,
+          "name": "oracle_instance",
+          "options": [],
+          "query": { "query": "label_values(oracle_up, oracle_instance)", "refId": "A" },
+          "refresh": 1,
+          "regexApplyTo": "value",
+          "type": "query"
+        }
+      ]
+    },
+    "time": { "from": "now-6h", "to": "now" },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "Oracle RAC 集群监控",
+    "uid": "oracle-rac",
+    "version": 1,
+    "weekStart": ""
+  },
+  "overwrite": true,
+  "folderUid": ""
+}
