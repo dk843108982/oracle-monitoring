@@ -60,7 +60,7 @@ groups:
           severity: critical
           skill: db/monitoring/space-management.md
         annotations:
-          summary: "表空间 {{ $labels.tablespace }} 使用率 {{ $value }}%（CRITICAL）"
+          summary: "表空间 {{ $labels.tablespace }}（{{ $labels.oracle_instance }}）使用率 {{ $value }}%（CRITICAL）"
           description: "使用率超过 95%，随时可能写满导致应用中断。技能路由: space-management -> tablespace"
 
       - alert: OracleTablespaceWarning
@@ -70,7 +70,7 @@ groups:
           severity: warning
           skill: db/monitoring/space-management.md
         annotations:
-          summary: "表空间 {{ $labels.tablespace }} 使用率 {{ $value }}%（WARNING）"
+          summary: "表空间 {{ $labels.tablespace }}（{{ $labels.oracle_instance }}）使用率 {{ $value }}%（WARNING）"
           description: "使用率超过 85%，应立即检查自动扩展上限与增长趋势。技能路由: space-management -> tablespace"
 
       - alert: OracleTablespaceWatch
@@ -80,7 +80,7 @@ groups:
           severity: info
           skill: db/monitoring/space-management.md
         annotations:
-          summary: "表空间 {{ $labels.tablespace }} 使用率 {{ $value }}%（WATCH）"
+          summary: "表空间 {{ $labels.tablespace }}（{{ $labels.oracle_instance }}）使用率 {{ $value }}%（WATCH）"
           description: "使用率超过 75%，纳入日常巡检关注。技能路由: space-management -> tablespace"
 
       - alert: OracleUndoUsageHigh
@@ -90,7 +90,7 @@ groups:
           severity: warning
           skill: db/monitoring/space-management.md
         annotations:
-          summary: "UNDO 表空间使用率 {{ $value }}%"
+          summary: "UNDO 表空间使用率 {{ $value }}%（{{ $labels.oracle_instance }}）"
           description: "UNDO 使用率超过 80%，可能存在大事务或 UNDO_RETENTION 不足。技能路由: space-management"
 
       - alert: OracleTempUsageHigh

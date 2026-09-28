@@ -59,6 +59,7 @@ services:
     container_name: oracle-collector
     ports:
       - "127.0.0.1:9161:9161"   # 仅本机暴露，防局域网直读 /metrics（Prometheus 走容器网络不受影响）
+    mem_limit: 512m             # 防 OOM（DB2 曾因无限制 OOM 导致授权异常）
     volumes:
       - ./collector/config.json:/app/config.json:ro
       - ./oracle-skills:/app/oracle-skills:ro
@@ -80,6 +81,7 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --web.listen-address=0.0.0.0:9090
+      - --storage.tsdb.retention.time=30d   # TSDB 数据保留 30 天（默认 15 天）
     networks:
       - default
       - rac_pub1_nw   # 采集 RAC 节点 node_exporter(:9100)
