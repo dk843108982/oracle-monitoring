@@ -334,11 +334,7 @@ SKILL_SQL = {
                guard_status, db_unique_name, log_mode, force_logging
         FROM   v$database
     """,
-    "dg_config": """
-        SELECT db_unique_name, role
-        FROM   v$dataguard_config
-        ORDER  BY role, db_unique_name
-    """,
+    "dg_config": "SELECT * FROM v$dataguard_config",
     "dg_dest_status": """
         SELECT dest_id, destination, status, type, db_unique_name,
                gap_status, NVL(error, '') AS error
@@ -604,7 +600,7 @@ class OracleCollector:
         used_b = used_gb * 1073741824
         free_b = free_gb * 1073741824
         lines.append(self._fmt_gauge("oracle_tablespace_used_percent",
-                                     {"tablespace": name, "contents": contents}, pct))
+                                     {"tablespace": name, "contents": contents}, min(100.0, pct)))
         lines.append(self._fmt_gauge("oracle_tablespace_total_bytes",
                                      {"tablespace": name}, total_b))
         lines.append(self._fmt_gauge("oracle_tablespace_used_bytes",
@@ -642,7 +638,7 @@ class OracleCollector:
             used_b = total_b * pct / 100
             free_b = total_b - used_b
             lines.append(self._fmt_gauge("oracle_tablespace_used_percent",
-                                         {"tablespace": name, "contents": contents}, pct))
+                                         {"tablespace": name, "contents": contents}, min(100.0, pct)))
             lines.append(self._fmt_gauge("oracle_tablespace_total_bytes",
                                          {"tablespace": name}, total_b))
             lines.append(self._fmt_gauge("oracle_tablespace_used_bytes",
@@ -656,9 +652,9 @@ class OracleCollector:
             lines.append(self._fmt_gauge("oracle_tablespace_free_days",
                                          {"tablespace": name}, sim.free_days([name, total_gb, pct, contents, _g, _ae])))
             if contents == "TEMPORARY":
-                lines.append(self._fmt_gauge("oracle_temp_used_percent", {}, pct))
+                lines.append(self._fmt_gauge("oracle_temp_used_percent", {}, min(100.0, pct)))
             if contents == "UNDO":
-                lines.append(self._fmt_gauge("oracle_undo_used_percent", {}, pct))
+                lines.append(self._fmt_gauge("oracle_undo_used_percent", {}, min(100.0, pct)))
         # sessions
         for st, cnt in sim.sessions().items():
             lines.append(self._fmt_gauge("oracle_sessions_total", {"status": st}, cnt))
@@ -791,7 +787,7 @@ class OracleCollector:
                 total = float(d["total_gb"] or 0)
                 used = float(d["used_gb"] or 0)
                 free = float(d["free_gb"] or 0)
-                pct = float(d["used_pct"] or 0)
+                pct = min(100.0, float(d["used_pct"] or 0))
                 # 总大小为 0 时跳过，避免除零错误
                 if total <= 0:
                     continue
@@ -1170,9 +1166,12 @@ class OracleCollector:
             cols, rows = self.run_query(inst_name, SKILL_SQL["dg_config"])
             for r in rows:
                 d = dict(zip(cols, r))
-                lines.append(self._fmt_gauge(
-                    "oracle_dg_config_info",
-                    {"db_unique_name": str(d["db_unique_name"]), "role": str(d["role"])}, 1))
+                labels = {"db_unique_name": str(d.get("db_unique_name") or "")}
+                if "role" in d and d.get("role") is not None:
+                    labels["role"] = str(d["role"])
+                if "database_role" in d and d.get("database_role") is not None:
+                    labels["database_role"] = str(d["database_role"])
+                lines.append(self._fmt_gauge("oracle_dg_config_info", labels, 1))
         except Exception as e:
             print(f"[warn] dg_config scrape failed: {e}", file=sys.stderr)
 
