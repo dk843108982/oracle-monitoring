@@ -48,6 +48,62 @@ class AlertHandlerServer:
         self.last_alerts = {}
 
     def handle_alert(self, payload):
+        # 兼容 WatchAlert WebHook 通知（WebhookContent 格式: {"alarm": {...}, "dutyUsers": [...]}）
+        alarm = payload.get("alarm")
+        if isinstance(alarm, dict):
+            name = alarm.get("rule_name") or alarm.get("ruleName") or "unknown"
+            labels = alarm.get("labels") or {}
+            annotations = alarm.get("annotations") or {}
+            # WatchAlert 的 Annotations 为字符串；Alertmanager 格式为字典
+            if isinstance(annotations, str):
+                annotations = {"summary": annotations}
+            is_recovered = bool(alarm.get("is_recovered")) or alarm.get("status") == "recovered"
+            status = "resolved" if is_recovered else "firing"
+            context = {
+                "alert": name,
+                "status": status,
+                "severity": alarm.get("severity") or labels.get("severity", ""),
+                "instance": labels.get("instance", ""),
+                "oracle_instance": labels.get("oracle_instance", ""),
+                "tablespace": labels.get("tablespace", ""),
+                "error": labels.get("error", ""),
+                "sql_id": labels.get("sql_id", ""),
+                "event": labels.get("event", ""),
+                "value": labels.get("value", ""),
+                "summary": annotations.get("summary") or annotations.get("description") or "",
+            }
+            alert_type = ALERT_SKILL_MAP.get(name, None)
+            if alert_type is None:
+                print(f"[handler] WatchAlert 跳过无技能映射告警: {name}", flush=True)
+                return
+            if status == "resolved":
+                print(f"[handler] WatchAlert {name} 已恢复，无需诊断", flush=True)
+                return
+            try:
+                runbook = self.engine.runbook(alert_type, context)
+                ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+                safe = name.replace(" ", "_")
+                fname = os.path.join(self.report_dir, f"{ts}_{safe}.txt")
+                with open(fname, "w", encoding="utf-8") as f:
+                    f.write(runbook)
+                print(f"[handler] WatchAlert 告警 {name} -> 技能 {alert_type}，诊断手册已生成: {fname}", flush=True)
+                print(runbook[:400] + "\n...", flush=True)
+            except Exception as e:
+                print(f"[handler] WatchAlert 诊断失败 {name}: {e}", flush=True)
+            return
+        # 兼容 WatchAlert 通知（Slack 格式 body: {"text": "..."}）
+        if not isinstance(payload.get("alerts"), list):
+            text = payload.get("text") or payload.get("message") or ""
+            if text:
+                ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+                fname = os.path.join(self.report_dir, f"{ts}_watchalert_notice.txt")
+                with open(fname, "w", encoding="utf-8") as f:
+                    f.write(text)
+                print(f"[handler] WatchAlert 通知已记录: {fname}", flush=True)
+                print(text[:300] + "\n...", flush=True)
+            else:
+                print(f"[handler] WatchAlert 未知格式 body: {json.dumps(payload, ensure_ascii=False)[:300]}", flush=True)
+            return
         alerts = payload.get("alerts", [])
         for a in alerts:
             labels = a.get("labels", {})
@@ -94,11 +150,18 @@ class Handler(BaseHTTPRequestHandler):
                 length = int(self.headers.get("Content-Length", 0))
                 body = self.rfile.read(length)
                 payload = json.loads(body.decode("utf-8"))
+                # WatchAlert/Slack 通知请求（无 alerts 数组）须回纯文本 ok，Slack 发送器要求响应体恰为 "ok"
+                is_slack = not isinstance(payload.get("alerts"), list)
                 threading.Thread(target=self.server_ref.handle_alert, args=(payload,), daemon=True).start()
                 self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(b'{"status":"ok"}')
+                if is_slack:
+                    self.send_header("Content-Type", "text/plain")
+                    self.end_headers()
+                    self.wfile.write(b"ok")
+                else:
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(b'{"status":"ok"}')
             except Exception as e:
                 print(f"[handler] 解析失败: {e}", flush=True)
                 self.send_response(400)
