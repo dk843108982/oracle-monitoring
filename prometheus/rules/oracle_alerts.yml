@@ -241,3 +241,60 @@ groups:
         annotations:
           summary: "采集耗时异常 {{ $value }}s"
           description: "采集耗时超过 10s，检查数据库负载或网络连接。"
+
+  # ------------------------------------------------------------
+  # advisor 类告警 —— 对应 oracle/skills 技能：
+  #   adrci-usage / health-monitor / explain-plan / index-strategy / optimizer-stats
+  # （alert_handler ALERT_SKILL_MAP 已注册同名映射）
+  # ------------------------------------------------------------
+  - name: oracle-advisor
+    rules:
+      - alert: OracleADRIncident
+        expr: oracle_alert_incidents_total > 5
+        for: 15m
+        labels:
+          severity: warning
+          skill: db/monitoring/adrci-usage.md
+        annotations:
+          summary: "ADR 开放 Incident 积压（{{ $value }} 个）"
+          description: "ADR 开放 incident 超过 5 个，使用 adrci 查询 incident/打包 IPS 支持包。技能路由: adrci-usage -> adrci"
+
+      - alert: OracleHealthMonitorCheck
+        expr: oracle_health_check_issues_total > 0
+        for: 5m
+        labels:
+          severity: warning
+          skill: db/monitoring/health-monitor.md
+        annotations:
+          summary: "Health Monitor 发现 {{ $value }} 个开放问题"
+          description: "DBMS_HM 存在未关闭健康检查问题，检查结构完整性（数据块/redo/undo/字典）。技能路由: health-monitor -> health_monitor"
+
+      - alert: OracleExplainPlanIssue
+        expr: oracle_sql_version_mismatch_total > 50
+        for: 15m
+        labels:
+          severity: warning
+          skill: db/performance/explain-plan.md
+        annotations:
+          summary: "{{ $value }} 条 SQL 版本不匹配（子游标过多）"
+          description: "高 version_count 的 SQL 执行计划易失控，分析字面量/游标共享并用 DBMS_XPLAN 对比。技能路由: explain-plan -> explain_plan"
+
+      - alert: OracleIndexStrategyIssue
+        expr: oracle_unused_indexes_total > 10
+        for: 15m
+        labels:
+          severity: warning
+          skill: db/performance/index-strategy.md
+        annotations:
+          summary: "{{ $value }} 个索引长期未使用"
+          description: "未使用索引浪费存储并拖慢 DML，评估不可见化或删除。技能路由: index-strategy -> index_strategy"
+
+      - alert: OracleOptimizerStatsStale
+        expr: oracle_stats_stale_total > 20
+        for: 15m
+        labels:
+          severity: warning
+          skill: db/performance/optimizer-stats.md
+        annotations:
+          summary: "{{ $value }} 个对象统计信息超过 30 天未收集"
+          description: "陈旧统计导致错误执行计划，执行 DBMS_STATS 收集并核对基数。技能路由: optimizer-stats -> optimizer_stats"

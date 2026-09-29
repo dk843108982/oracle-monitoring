@@ -215,7 +215,9 @@ py -3.12 .\collector\skills_engine.py --alert wait_events --json
 
 * 归档：归档进程失败 → CRITICAL；24h 归档 > 500 → WARNING
 
-完整规则见 `prometheus\rules\oracle_alerts.yml`（22 条）+ `prometheus\rules\oracle_dg_rac_alerts.yml`（13 条），共 **35 条规则、9 个规则组**。
+* 健康与性能 Advisor（新增）：ADR Incident 积压 > 5 → WARNING；Health Monitor 开放问题 > 0 → WARNING；SQL 版本不匹配 > 50 → WARNING；未使用索引 > 10 → WARNING；统计信息过期 > 20 → WARNING（对应 adrci / health-monitor / explain-plan / index-strategy / optimizer-stats 技能）
+
+完整规则见 `prometheus\rules\oracle_alerts.yml`（27 条）+ `prometheus\rules\oracle_dg_rac_alerts.yml`（13 条），共 **40 条规则、10 个规则组**。
 
 ## WatchAlert 集成（多渠道告警通知）
 
@@ -287,7 +289,7 @@ alerting:
 | ----------------- | -------- | --------------------------------------------------- |
 | Grafana           | 3000     | Oracle Enterprise Monitor 大盘，admin/admin            |
 | **Skill Console** | **8090** | **oracle/skills 技能选择前端（路由地图 / 角色路由 / 任务诊断 / 告警联动）** |
-| Prometheus        | 9090     | 指标与 35 条告警规则                                        |
+| Prometheus        | 9090     | 指标与 40 条告警规则                                        |
 | Collector         | 9161     | Oracle 双模采集器（demo /real），`/metrics`                 |
 | Alertmanager      | 9093     | 告警分发（webhook → 8080）                                |
 | AlertHandler      | 8080     | 告警 → 技能诊断桥接（生成诊断手册落盘 reports/）                      |
@@ -422,7 +424,7 @@ docker exec -d racnode1 /usr/local/bin/node_exporter --web.listen-address=:9100 
 
 ## 告警规则（DG / RAC 13 条新增）
 
-`prometheus/rules/oracle_dg_rac_alerts.yml` 新增 13 条规则（DG 9 + RAC 4）：DG 角色切换、传输 / 应用滞后、归档 GAP、目的地错误、MRP 掉线、保护级别变化、standby log 缺失；RAC 节点失联、节点重启、等待异常、会话失衡。连同原有 22 条共 **35 条规则、9 个规则组**。Prometheus 重载：`docker kill -s HUP oracle-prometheus`。
+`prometheus/rules/oracle_dg_rac_alerts.yml` 新增 13 条规则（DG 9 + RAC 4）：DG 角色切换、传输 / 应用滞后、归档 GAP、目的地错误、MRP 掉线、保护级别变化、standby log 缺失；RAC 节点失联、节点重启、等待异常、会话失衡。`oracle_alerts.yml` 另含 27 条（实例/空间/Alert 日志/性能/归档/备份/采集 + 5 条 Advisor 类），共 **40 条规则、10 个规则组**。Prometheus 重载：`docker kill -s HUP oracle-prometheus`。
 
 通知链路：Alertmanager (:9093) → alert-handler (:8080 技能诊断) → 钉钉 / 企业微信（`alertmanager/README-NOTIFY.md` 三步启用）。⚠️ webhook 必须写容器名 `alert-handler:8080`（非 127.0.0.1），alert-handler 需监听 `0.0.0.0`。
 

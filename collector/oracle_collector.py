@@ -150,6 +150,12 @@ METRIC_HEADER = (
     "# TYPE oracle_block_corruption_total gauge\n"
     "# HELP oracle_health_check_issues_total Open health check issues (V$HM_RUN)\n"
     "# TYPE oracle_health_check_issues_total gauge\n"
+    "# HELP oracle_sql_version_mismatch_total SQL with high version_count (V$SQLAREA)\n"
+    "# TYPE oracle_sql_version_mismatch_total gauge\n"
+    "# HELP oracle_unused_indexes_total Indexes never accessed (DBA_INDEX_USAGE)\n"
+    "# TYPE oracle_unused_indexes_total gauge\n"
+    "# HELP oracle_stats_stale_total Objects with stale/missing optimizer stats (DBA_TABLES)\n"
+    "# TYPE oracle_stats_stale_total gauge\n"
     "# HELP oracle_datafiles_total Datafiles by tablespace\n"
     "# TYPE oracle_datafiles_total gauge\n"
     "# HELP oracle_datafiles_autoextend_total Autoextensible datafiles by tablespace\n"
@@ -356,6 +362,9 @@ SKILL_SQL = {
     "enqueue_stats": "SELECT eq_type, total_wait# AS total_waits, cum_wait_time FROM v$enqueue_stat WHERE total_wait# > 0 ORDER BY total_wait# DESC FETCH FIRST 10 ROWS ONLY",
     "buffer_busy": "SELECT COUNT(*) AS cnt FROM v$waitstat WHERE class LIKE '%free%' OR class LIKE '%busy%'",
     "sql_version_count": "SELECT COUNT(*) AS cnt FROM v$sqlarea WHERE version_count > 5",
+    "health_findings": "SELECT COUNT(*) AS cnt FROM v$hm_finding WHERE status = 'OPEN'",
+    "unused_indexes": "SELECT COUNT(*) AS cnt FROM dba_index_usage WHERE total_access_count = 0",
+    "stats_stale": "SELECT COUNT(*) AS cnt FROM dba_tables WHERE last_analyzed IS NULL OR last_analyzed < SYSDATE - 30",
     # ---- RAC / Cluster 指标（GV$ 视图，带 inst_id） ----
     "rac_instance": "SELECT inst_id, instance_name, host_name, status, TO_CHAR(startup_time, 'YYYY-MM-DD HH24:MI:SS') AS startup_time FROM gv$instance",
     "rac_sessions": "SELECT inst_id, status, COUNT(*) AS cnt FROM gv$session GROUP BY inst_id, status ORDER BY inst_id, status",
@@ -451,6 +460,9 @@ class DemoSimulator:
         self.uptime = 2_718_400        # 秒，约 31 天
         self.incidents = 1
         self.backup_age_days = 4.8     # 距上次全备天数，缓慢增长可触发备份过期告警
+        self.sql_version_mismatch = 60   # 高 version_count SQL 数（>50 触发 explain_plan 告警演示）
+        self.unused_indexes = 8         # 未使用索引数（>10 触发 index_strategy 告警演示）
+        self.stats_stale = 15           # 统计过期对象数（>20 触发 optimizer_stats 告警演示）
         self.sysstat = {"DB time": 3_841_200, "physical reads": 9_204_188_230,
                         "logical reads": 8_114_009_221_800, "parse count total": 9_412_030,
                         "parse count (hard)": 884_120, "user commits": 48_120_344,
@@ -486,6 +498,10 @@ class DemoSimulator:
             self.incidents = min(3, self.incidents + 1)
         if random.random() < 0.02 and self.incidents > 0:
             self.incidents -= 1
+        # 未使用索引 / 统计过期缓慢累积（演示 advisor 类告警触发）
+        self.unused_indexes = round(min(25.0, self.unused_indexes + 0.08), 1)
+        self.stats_stale = round(min(40.0, self.stats_stale + 0.15), 1)
+        self.sql_version_mismatch = round(min(120.0, self.sql_version_mismatch + 0.3), 1)
         # 偶尔注入新的 alert 错误
         if self.alert_errors_per_cycle > 0 and self.cycle % max(1, int(30 / self.alert_errors_per_cycle)) == 0:
             key = random.choice(["ORA-01555", "ORA-00060", "ORA-00600"])
@@ -734,9 +750,16 @@ class OracleCollector:
         lines.append(self._fmt_gauge("oracle_archive_lag_seconds", {}, sim.archive_lag_sec()))
         lines.append(self._fmt_gauge("oracle_backup_age_days", {}, sim.backup_age_days))
         lines.append(self._fmt_gauge("oracle_block_corruption_total", {}, 0))
-        # health
+        # health / advisor（OracleHealthMonitorCheck / OracleExplainPlanIssue /
+        # OracleIndexStrategyIssue / OracleOptimizerStatsStale 告警演示）
         lines.append(self._fmt_gauge("oracle_health_check_issues_total", {},
                                      sim.incidents))
+        lines.append(self._fmt_gauge("oracle_sql_version_mismatch_total", {},
+                                     sim.sql_version_mismatch))
+        lines.append(self._fmt_gauge("oracle_unused_indexes_total", {},
+                                     sim.unused_indexes))
+        lines.append(self._fmt_gauge("oracle_stats_stale_total", {},
+                                     sim.stats_stale))
         # datafiles
         for ts_name, _tb, _p, _c, _g, _ae in sim.tablespace_rows():
             lines.append(self._fmt_gauge("oracle_datafiles_total",
@@ -1128,6 +1151,30 @@ class OracleCollector:
                 lines.append(self._fmt_gauge("oracle_sql_version_mismatch_total", {}, rows[0][0]))
         except Exception as e:
             print(f"[warn] sql_version_count scrape failed: {e}", file=sys.stderr)
+
+        # ---- Health Monitor 开放问题（V$HM_FINDING） ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["health_findings"])
+            if rows:
+                lines.append(self._fmt_gauge("oracle_health_check_issues_total", {}, rows[0][0]))
+        except Exception as e:
+            print(f"[warn] health_findings scrape failed: {e}", file=sys.stderr)
+
+        # ---- 未使用索引（DBA_INDEX_USAGE，12cR2+） ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["unused_indexes"])
+            if rows:
+                lines.append(self._fmt_gauge("oracle_unused_indexes_total", {}, rows[0][0]))
+        except Exception as e:
+            print(f"[warn] unused_indexes scrape failed: {e}", file=sys.stderr)
+
+        # ---- 统计信息过期对象（DBA_TABLES.last_analyzed） ----
+        try:
+            cols, rows = self.run_query(inst_name, SKILL_SQL["stats_stale"])
+            if rows:
+                lines.append(self._fmt_gauge("oracle_stats_stale_total", {}, rows[0][0]))
+        except Exception as e:
+            print(f"[warn] stats_stale scrape failed: {e}", file=sys.stderr)
 
         # ---- RAC / 集群指标（GV$ 视图） ----
         try:
