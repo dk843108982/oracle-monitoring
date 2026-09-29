@@ -68,6 +68,7 @@
       <div class="sub">oracle/skills 技能路由中心 —— Route, Don't Flood：按角色 / 按任务选择技能，一键触发诊断</div>
     </div>
     <div class="statusbar" id="statusbar"><span class="pill">加载中…</span></div>
+    <div class="statusbar" id="statsbar" style="margin-top:6px;"></div>
   </header>
 
   <nav>
@@ -75,7 +76,14 @@
     <button data-tab="persona">🧭 按角色路由</button>
     <button data-tab="task">🎯 按任务诊断</button>
     <button data-tab="alert">🔔 告警联动</button>
+    <button data-tab="search">🔍 全文检索</button>
   </nav>
+
+  <!-- 官方起点横幅（所有 Tab 共享顶部） -->
+  <div id="startpoints-bar" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 14px;margin-bottom:14px;">
+    <div style="font-weight:600;margin-bottom:6px;">🚀 官方 Key Starting Points（db/SKILL.md 推荐入口）</div>
+    <div id="startpoints-list" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+  </div>
 
   <!-- 技能地图 -->
   <div class="tab active" id="tab-map">
@@ -117,6 +125,12 @@
           <option value="memory">内存调优</option>
           <option value="awr">AWR 基线分析</option>
           <option value="ash">ASH 实时会话</option>
+          <option value="backup">备份恢复</option>
+          <option value="adrci">ADRCI 诊断仓库</option>
+          <option value="health_monitor">Health Monitor 健康检查</option>
+          <option value="explain_plan">执行计划分析</option>
+          <option value="index_strategy">索引策略</option>
+          <option value="optimizer_stats">统计信息过期</option>
         </select>
         <input id="diag-ctx" placeholder='上下文 JSON，如 {"tablespace":"USERS","used_pct":92}' style="flex:1;min-width:220px;">
         <button type="submit" class="primary">运行诊断 →</button>
@@ -131,8 +145,18 @@
 
   <!-- 告警联动 -->
   <div class="tab" id="tab-alert">
-    <h3>Prometheus 告警 → oracle/skills 技能映射</h3>
+    <h3>Prometheus 告警 → oracle/skills 技能映射（<span id="alertmap-count"></span> 条，来自 ALERT_SKILL_MAP × ALERT_ROUTES）</h3>
     <div id="alertmap"></div>
+  </div>
+
+  <!-- 全文检索 -->
+  <div class="tab" id="tab-search">
+    <h3>🔍 技能全文检索（标题 + 正文关键词，大小写不敏感）</h3>
+    <form id="search-form" style="display:flex;gap:8px;margin:10px 0;">
+      <input id="search-q" placeholder="输入关键词，如：tablespace / wait event / 26ai / vector / RAC" style="flex:1;min-width:220px;">
+      <button type="submit" class="primary">搜索</button>
+    </form>
+    <div id="search-result"></div>
   </div>
 </div>
 
@@ -165,6 +189,67 @@ async function loadStatus() {
   } catch (e) {
     $("#statusbar").innerHTML = `<span class="pill"><span class="dot r"></span>状态不可用</span>`;
   }
+}
+
+// ---- 技能库统计 + 官方起点 ----
+async function loadStats() {
+  try {
+    const s = await api("/api/stats");
+    $("#statsbar").innerHTML =
+      `<span class="pill">📚 ${s.skills} 技能 / ${s.categories} 分类</span>` +
+      `<span class="pill">🧩 ${s.sql_blocks} 条诊断 SQL</span>` +
+      `<span class="pill">✅ ${s.best_practices} 最佳实践</span>` +
+      `<span class="pill">🔔 ${s.alert_map} 告警映射</span>` +
+      `<span class="pill">🎯 ${s.task_routes} 任务流</span>`;
+  } catch (e) {}
+  try {
+    const sp = await api("/api/startpoints");
+    $("#startpoints-list").innerHTML = sp.map(p => {
+      const nm = p.split("/").pop().replace(".md", "");
+      return `<span class="badge" style="cursor:pointer;" data-sp="${p}">${nm}</span>`;
+    }).join("");
+    $("#startpoints-bar").style.display = "block";
+    $$(".badge[data-sp]").forEach(b => b.addEventListener("click", () => {
+      const f = b.dataset.sp;
+      $$("nav button").forEach(x => x.classList.remove("active"));
+      $$(".tab").forEach(t => t.classList.remove("active"));
+      $('[data-tab="map"]').classList.add("active");
+      $("#tab-map").classList.add("active");
+      const dir = f.split("/").slice(0, 2).join("/");
+      const treeItem = $$(".tree-item").find(el => el.dataset.dir === dir);
+      if (treeItem) treeItem.click();
+      const skillItem = $$(".skill-item").find(el => el.dataset.f === f);
+      if (skillItem) skillItem.click();
+    }));
+  } catch (e) {}
+}
+
+// ---- 全文检索 ----
+async function runSearch(ev) {
+  ev.preventDefault();
+  const q = $("#search-q").value.trim();
+  if (!q) { $("#search-result").innerHTML = `<div class="empty">请输入关键词</div>`; return; }
+  $("#search-result").innerHTML = `<div class="empty">搜索中…</div>`;
+  const hits = await api("/api/search?q=" + encodeURIComponent(q));
+  if (!hits.length) { $("#search-result").innerHTML = `<div class="empty">未找到匹配技能，试试 tablespace / wait / RAC / 26ai</div>`; return; }
+  $("#search-result").innerHTML = `<div style="margin-bottom:8px;font-size:13px;color:#6b7280;">命中 ${hits.length} 个技能文件</div>` +
+    hits.map(h => `
+      <div class="skill-item" data-f="${h.file}" style="cursor:pointer;">
+        <div><div class="t">${h.title} <span style="color:#9ca3af;font-size:12px;">${h.file}</span></div>
+        <div style="font-size:12px;color:#374151;margin-top:4px;font-family:Consolas,monospace;">${h.snippet || "（无正文片段，点击查看详情）"}</div></div>
+      </div>`).join("");
+  $$(".skill-item[data-f]", $("#search-result")).forEach(el => el.addEventListener("click", () => {
+    const f = el.dataset.f;
+    $$("nav button").forEach(x => x.classList.remove("active"));
+    $$(".tab").forEach(t => t.classList.remove("active"));
+    $('[data-tab="map"]').classList.add("active");
+    $("#tab-map").classList.add("active");
+    const dir = f.split("/").slice(0, 2).join("/");
+    const treeItem = $$(".tree-item").find(el => el.dataset.dir === dir);
+    if (treeItem) treeItem.click();
+    const skillItem = $$(".skill-item").find(el => el.dataset.f === f);
+    if (skillItem) skillItem.click();
+  }));
 }
 
 // ---- 技能地图 ----
@@ -288,9 +373,21 @@ async function loadReports() {
 // ---- 告警联动 ----
 async function loadAlertMap() {
   const rows = await api("/api/alertmap");
+  $("#alertmap-count").textContent = rows.length;
+  // 实时告警状态（用于高亮）
+  let firing = new Set(), pending = new Set();
+  try {
+    const st = await api("/api/status");
+    st.alerts.forEach(a => { if (a.state === "firing") firing.add(a.name); });
+  } catch (e) {}
   $("#alertmap").innerHTML =
-    `<div class="alert-row header"><div>Prometheus 告警</div><div>技能文件</div><div>阈值 / 说明</div></div>` +
-    rows.map(r => `<div class="alert-row"><div><b>${r.alert}</b><div class="mono" style="font-size:12px;color:#6b7280;">→ ${r.alert_type}</div></div><div class="mono" style="font-size:12px;">${r.skill}</div><div style="font-size:12px;">${r.threshold}</div></div>`).join("");
+    `<div class="alert-row header"><div>Prometheus 告警</div><div>技能文件</div><div>阈值 / 说明</div><div>状态</div></div>` +
+    rows.map(r => {
+      const isFiring = firing.has(r.alert);
+      const state = isFiring ? `<span class="pill" style="background:#fee2e2;color:#b91c1c;">● FIRING</span>`
+        : `<span class="pill" style="background:#e5e7eb;color:#4b5563;">IDLE</span>`;
+      return `<div class="alert-row"><div><b>${r.alert}</b><div class="mono" style="font-size:12px;color:#6b7280;">→ ${r.alert_type} · ${r.title}</div></div><div class="mono" style="font-size:12px;">${r.skill}</div><div style="font-size:12px;">${r.threshold}</div><div>${state}</div></div>`;
+    }).join("");
 }
 
 // ---- 路由切换 ----
@@ -305,15 +402,18 @@ $$("nav button").forEach(btn => btn.addEventListener("click", () => {
 }));
 
 $("#diag-form").addEventListener("submit", runDiag);
+$("#search-form").addEventListener("submit", runSearch);
 
 // 初始化
 loadStatus();
+loadStats();
 loadMap();
 loadPersonas();
 loadTasks();
 loadReports();
 loadAlertMap();
 setInterval(loadStatus, 15000);
+setInterval(loadAlertMap, 30000);
 </script>
 </body>
 </html>

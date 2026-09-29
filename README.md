@@ -2,26 +2,17 @@
 
 一套完整、可运行的企业级 Oracle 数据库监控栈，**深度集成&#x20;**[Oracle 官方 AI 技能库](https://github.com/oracle/skills)—— 监控 SQL、阈值、诊断流程全部来自 Oracle 官方 DBA 技能文档，而非临时拼凑。
 
-> 📦 想发布到 GitHub？请看 
->
+> 📦 想发布到 GitHub？请看
 > [PUBLISH.md](PUBLISH.md)
->
 > （含仓库内容规划、发布步骤、Release 附件流程）。
-> 🌐 
->
+> 🌐
 > **项目主页（GitHub）**
->
 > ：
->
 > [https://github.com/dk843108982/oracle-monitoring](https://github.com/dk843108982/oracle-monitoring)
-> 包含三套 Grafana 大盘：单实例监控（oracle-enterprise）、RAC 集群监控（oracle-rac）、Data Guard 监控（oracle-dg），并可通过 
->
+> 包含三套 Grafana 大盘：单实例监控（oracle-enterprise）、RAC 集群监控（oracle-rac）、Data Guard 监控（oracle-dg），并可通过
 > `grafana/create_all_dashboard.py`
->
->  一键合并为 
->
+> 一键合并为
 > **Oracle 综合监控总看板（oracle-all，9 分组 51 面板）**
->
 > ，一个入口看全部。
 
 ## 架构
@@ -150,17 +141,13 @@ py -3.12 .\collector\oracle_collector.py --mode real --config .\collector\config
 
 > 真实模式执行的 SQL 全部取自 oracle/skills 技能库：
 > `db/monitoring/space-management.md`
->
->  —— 表空间主查询（DBA_TABLESPACE_USAGE_METRICS）
+> —— 表空间主查询（DBA_TABLESPACE_USAGE_METRICS）
 > `db/monitoring/alert-log-analysis.md`
->
->  —— Alert 日志（V$DIAG_ALERT_EXT）
+> —— Alert 日志（V$DIAG_ALERT_EXT）
 > `db/monitoring/top-sql-queries.md`
->
->  —— Top SQL（V$SQLAREA）
+> —— Top SQL（V$SQLAREA）
 > `db/performance/wait-events.md`
->
->  —— 等待事件（V$SYSTEM_EVENT）
+> —— 等待事件（V$SYSTEM_EVENT）
 
 ## oracle/skills 技能集成（核心亮点）
 
@@ -185,19 +172,19 @@ py -3.12 .\collector\skills_engine.py --alert wait_events --json
 
 
 
-| Prometheus 告警                          | 技能文件                                  | 诊断内容                             |
-| -------------------------------------- | ------------------------------------- | -------------------------------- |
-| OracleTablespaceCritical/Warning/Watch | `db/monitoring/space-management.md`   | 使用率分级（95/85/75）、自动扩展、HWM、碎片、扩容建议 |
-| OracleAlertLogCriticalError            | `db/monitoring/alert-log-analysis.md` | ORA 错误分级、trace 关联、ADR 分析         |
-| OracleInstanceDown                     | `db/monitoring/alert-log-analysis.md` | 实例崩溃根因、监听、alert.log              |
-| OracleSlowSQL                          | `db/monitoring/top-sql-queries.md`    | Top SQL 定位、执行计划、AWR 对比           |
-| OracleTopWaitEvent                     | `db/performance/wait-events.md`       | 等待事件分类、瓶颈定位                      |
-| OracleBufferCacheHitRatioLow           | `db/performance/memory-tuning.md`     | SGA/PGA、命中率调优                    |
-| OracleADRIncident                      | `db/monitoring/adrci-usage.md`        | ADRCI 查询 alert/trace/incident、IPS 打包 |
-| OracleHealthMonitorCheck               | `db/monitoring/health-monitor.md`     | DBMS_HM 结构完整性检查、Advisor 建议        |
-| OracleExplainPlanIssue                 | `db/performance/explain-plan.md`      | EXPLAIN PLAN/DBMS_XPLAN、E-Rows vs A-Rows |
-| OracleIndexStrategyIssue               | `db/performance/index-strategy.md`    | B-tree/位图/FBI、复合列序、不可见索引、自动索引   |
-| OracleOptimizerStatsStale              | `db/performance/optimizer-stats.md`   | DBMS_STATS 新鲜度、陈旧统计导致计划回退        |
+| Prometheus 告警                          | 技能文件                                  | 诊断内容                                      |
+| -------------------------------------- | ------------------------------------- | ----------------------------------------- |
+| OracleTablespaceCritical/Warning/Watch | `db/monitoring/space-management.md`   | 使用率分级（95/85/75）、自动扩展、HWM、碎片、扩容建议          |
+| OracleAlertLogCriticalError            | `db/monitoring/alert-log-analysis.md` | ORA 错误分级、trace 关联、ADR 分析                  |
+| OracleInstanceDown                     | `db/monitoring/alert-log-analysis.md` | 实例崩溃根因、监听、alert.log                       |
+| OracleSlowSQL                          | `db/monitoring/top-sql-queries.md`    | Top SQL 定位、执行计划、AWR 对比                    |
+| OracleTopWaitEvent                     | `db/performance/wait-events.md`       | 等待事件分类、瓶颈定位                               |
+| OracleBufferCacheHitRatioLow           | `db/performance/memory-tuning.md`     | SGA/PGA、命中率调优                             |
+| OracleADRIncident                      | `db/monitoring/adrci-usage.md`        | ADRCI 查询 alert/trace/incident、IPS 打包      |
+| OracleHealthMonitorCheck               | `db/monitoring/health-monitor.md`     | DBMS\_HM 结构完整性检查、Advisor 建议               |
+| OracleExplainPlanIssue                 | `db/performance/explain-plan.md`      | EXPLAIN PLAN/DBMS\_XPLAN、E-Rows vs A-Rows |
+| OracleIndexStrategyIssue               | `db/performance/index-strategy.md`    | B-tree / 位图 / FBI、复合列序、不可见索引、自动索引         |
+| OracleOptimizerStatsStale              | `db/performance/optimizer-stats.md`   | DBMS\_STATS 新鲜度、陈旧统计导致计划回退                |
 
 ## 告警规则（阈值来自技能库最佳实践）
 
@@ -215,13 +202,15 @@ py -3.12 .\collector\skills_engine.py --alert wait_events --json
 
 * 归档：归档进程失败 → CRITICAL；24h 归档 > 500 → WARNING
 
-* 健康与性能 Advisor（新增）：ADR Incident 积压 > 5 → WARNING；Health Monitor 开放问题 > 0 → WARNING；SQL 版本不匹配 > 50 → WARNING；未使用索引 > 10 → WARNING；统计信息过期 > 20 → WARNING（对应 adrci / health-monitor / explain-plan / index-strategy / optimizer-stats 技能）
+* 健康与性能 Advisor（新增）：ADR Incident 积压 > 5 → WARNING；Health Monitor 开放问题 > 0 → WARNING；SQL 版本不匹配 > 50 → WARNING；未使用索引 > 10 → WARNING；统计信息过期 > 20 → WARNING（对应 adrci /health-monitor/explain-plan /index-strategy/optimizer-stats 技能）
 
 完整规则见 `prometheus\rules\oracle_alerts.yml`（27 条）+ `prometheus\rules\oracle_dg_rac_alerts.yml`（13 条），共 **40 条规则、10 个规则组**。
 
 ## WatchAlert 集成（多渠道告警通知）
 
 本项目已集成 [WatchAlert](https://github.com/opsre/WatchAlert)（开源多数据源告警引擎），用于替代 / 补充 Alertmanager 的通知能力：
+
+
 
 * 与 Prometheus 规则同步：已导入并启用全部 **40 条规则**（实例 / 表空间 / Alert 日志 / 性能 / 归档 / 备份 / Advisor / DG / RAC），告警统一经 `fc-oracle` 故障中心 → WebHook 通知 → alert-handler 技能诊断闭环。
 
@@ -278,7 +267,6 @@ alerting:
 3. **告警策略** → 配置聚合 / 静默 / 升级规则
 
 > 文档：
->
 > [https://cairry.github.io/docs/](https://cairry.github.io/docs/)
 
 ## 组件清单
@@ -424,7 +412,7 @@ docker exec -d racnode1 /usr/local/bin/node_exporter --web.listen-address=:9100 
 
 ## 告警规则（DG / RAC 13 条新增）
 
-`prometheus/rules/oracle_dg_rac_alerts.yml` 新增 13 条规则（DG 9 + RAC 4）：DG 角色切换、传输 / 应用滞后、归档 GAP、目的地错误、MRP 掉线、保护级别变化、standby log 缺失；RAC 节点失联、节点重启、等待异常、会话失衡。`oracle_alerts.yml` 另含 27 条（实例/空间/Alert 日志/性能/归档/备份/采集 + 5 条 Advisor 类），共 **40 条规则、10 个规则组**。Prometheus 重载：`docker kill -s HUP oracle-prometheus`。
+`prometheus/rules/oracle_dg_rac_alerts.yml` 新增 13 条规则（DG 9 + RAC 4）：DG 角色切换、传输 / 应用滞后、归档 GAP、目的地错误、MRP 掉线、保护级别变化、standby log 缺失；RAC 节点失联、节点重启、等待异常、会话失衡。`oracle_alerts.yml` 另含 27 条（实例 / 空间 / Alert 日志 / 性能 / 归档 / 备份 / 采集 + 5 条 Advisor 类），共 **40 条规则、10 个规则组**。Prometheus 重载：`docker kill -s HUP oracle-prometheus`。
 
 通知链路：Alertmanager (:9093) → alert-handler (:8080 技能诊断) → 钉钉 / 企业微信（`alertmanager/README-NOTIFY.md` 三步启用）。⚠️ webhook 必须写容器名 `alert-handler:8080`（非 127.0.0.1），alert-handler 需监听 `0.0.0.0`。
 
@@ -454,20 +442,14 @@ docker exec -d racnode1 /usr/local/bin/node_exporter --web.listen-address=:9100 
 
 > 说明：
 > Windows 包内已含 Windows 二进制，Linux/Docker 方式无需携带大体积包
-> 接入真实 Oracle 库：三平台统一修改 
->
+> 接入真实 Oracle 库：三平台统一修改
 > `collector/config.json`
->
-> （mode=real + 连接信息），先执行 
->
+> （mode=real + 连接信息），先执行
 > `collector/grants.sql`
->
->  授权
-> 换机器后首次启动若端口被占，修改各组件 
->
+> 授权
+> 换机器后首次启动若端口被占，修改各组件
 > `--web.listen-address`
->
->  即可
+> 即可
 
 ## 目录结构
 

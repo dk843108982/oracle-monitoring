@@ -86,18 +86,45 @@ PERSONA_ROUTES = [
     },
 ]
 
-# ---- 按任务推荐路由（来源：db/SKILL.md Common Multi-Step Flows）----
+# ---- 按任务推荐路由（来源：Oracle db/SKILL.md Common Multi-Step Flows，8 条全量）----
 TASK_ROUTES = [
     {"task": "慢查询诊断", "steps": ["explain-plan", "wait-events", "optimizer-stats", "awr-reports"],
      "dir": "db/performance", "desc": "先读真实执行计划（DISPLAY_CURSOR），计划正常再查等待事件，估算偏差先修统计信息。"},
     {"task": "表空间告警处理", "steps": ["space-management", "alert-log-analysis"], "dir": "db/monitoring",
      "desc": "DBA_TABLESPACE_USAGE_METRICS 分级（95/85/75），评估自动扩展与 HWM 后再扩容/收缩。"},
+    {"task": "迁移规划（Plan a Migration）", "steps": ["migration-assessment", "oracle-migration-tools",
+        "migrate-*（按源库）", "migration-cutover-strategy"], "dir": "db/migrations",
+     "desc": "先做迁移评估与工具选型，再按源库执行 migrate-*，最后制定割接策略。"},
+    {"task": "Java JDBC 服务搭建", "steps": ["java-oracle-jdbc", "dependencies", "connections", "sql", "pooling-production"],
+     "dir": "db/appdev", "desc": "从 JDBC 依赖 → 连接配置 → SQL 执行 → 生产连接池，按官方顺序落地。"},
     {"task": "RAG on Oracle", "steps": ["ai-profiles", "vector-search", "dbms-vector"], "dir": "db/features",
      "desc": "先定 AI Profile（模型与可见对象），再学检索与编排，注意 26ai 版本门槛。"},
     {"task": "Agent 安全变更", "steps": ["schema-discovery", "destructive-op-guards", "idempotency-patterns", "schema-migrations"],
      "dir": "db/agent|db/migrations", "desc": "先发现，再防损，后幂等，最后才进受审计的迁移流程。"},
     {"task": "SQLcl MCP 接入", "steps": ["sqlcl-basics", "deep-data-security", "sqlcl-mcp-server"], "dir": "db/sqlcl|db/security",
      "desc": "保存连接 → 最小权限 → 启动 MCP，路由完成后再进入执行层。"},
+    {"task": "Oracle Vector SDK 部署", "steps": ["vecdb-provisioning", "Oracle Vector SDK Quick Start", "Prepare an AI Database"],
+     "dir": "db/vecdb", "desc": "数据库准备 → SDK 快速开始 → AI Database 就绪，三步完成向量能力底座。"},
+    {"task": "向量应用（语义搜索 / RAG）", "steps": ["vecdb-architecture", "vecdb-api-reference",
+        "vecdb-models / vecdb-vector-tables / vecdb-search / vecdb-indexes"], "dir": "db/vecdb",
+     "desc": "用 Python SDK / REST / PL/SQL 的固定 Schema API 构建语义搜索与推荐应用。"},
+]
+
+# ---- 官方 Key Starting Points（来源：db/SKILL.md）----
+START_POINTS = [
+    "db/sqlcl/sqlcl-mcp-server.md",
+    "db/migrations/migration-assessment.md",
+    "db/performance/explain-plan.md",
+    "db/plsql/plsql-package-design.md",
+    "db/appdev/java-oracle-jdbc.md",
+    "db/devops/schema-migrations.md",
+    "db/security/deep-data-security.md",
+    "db/agent/schema-discovery.md",
+    "db/containers/container-selection-matrix.md",
+    "db/backup-recovery/autonomous-recovery-service.md",
+    "db/backup-recovery/cloud-protect.md",
+    "db/vecdb/vecdb-provisioning.md",
+    "db/vecdb/vecdb-architecture.md",
 ]
 
 
@@ -131,7 +158,7 @@ class SkillsIndex:
                         continue
                     cells = [c.strip().strip("`") for c in line.strip().strip("|").split("|")]
                     if len(cells) >= 2 and cells[0] and cells[1].startswith("db/"):
-                        self.categories.append({"topic": cells[0], "dir": cells[1], "desc": cells[2] if len(cells) > 2 else ""})
+                        self.categories.append({"topic": cells[0], "dir": cells[1].rstrip("/"), "desc": cells[2] if len(cells) > 2 else ""})
         # 遍历 db 目录收集子技能
         db = os.path.join(self.repo, "db")
         if os.path.isdir(db):
@@ -188,28 +215,91 @@ class ConsoleState:
         self.index = SkillsIndex(repo)
         sys.path.insert(0, os.path.join(CONSOLE_DIR, "..", "collector"))
         from skills_engine import SkillsEngine, ALERT_ROUTES
+        from alert_handler import ALERT_SKILL_MAP
         self.engine = SkillsEngine(repo)
         self.alert_routes = ALERT_ROUTES
+        self.alert_skill_map = ALERT_SKILL_MAP
         self.reports_dir = reports_dir
         os.makedirs(reports_dir, exist_ok=True)
         self.collector_url = collector_url
         self.prometheus_url = prometheus_url
-        self._alertmap = [
-            {"alert": "OracleTablespaceCritical/Warning/Watch", "alert_type": "tablespace",
-             "skill": "db/monitoring/space-management.md", "threshold": ">=95 / >=85 / >=75"},
-            {"alert": "OracleAlertLogCriticalError", "alert_type": "alertlog",
-             "skill": "db/monitoring/alert-log-analysis.md", "threshold": "任何 ORA 错误"},
-            {"alert": "OracleInstanceDown", "alert_type": "instance_down",
-             "skill": "db/monitoring/alert-log-analysis.md", "threshold": "oracle_up == 0"},
-            {"alert": "OracleSlowSQL", "alert_type": "slow_sql",
-             "skill": "db/monitoring/top-sql-queries.md", "threshold": "Top SQL 耗时 > 30min"},
-            {"alert": "OracleTopWaitEvent", "alert_type": "wait_events",
-             "skill": "db/performance/wait-events.md", "threshold": "Top 等待 > 1h"},
-            {"alert": "OracleBufferCacheHitRatioLow", "alert_type": "memory",
-             "skill": "db/performance/memory-tuning.md", "threshold": "命中率 < 95%"},
-            {"alert": "OracleArchiverFailed", "alert_type": "alertlog",
-             "skill": "db/monitoring/alert-log-analysis.md", "threshold": "归档失败"},
-        ]
+        # 告警联动映射：由 ALERT_SKILL_MAP（16 条告警名）x ALERT_ROUTES（技能路径/阈值）动态生成
+        self._alertmap = []
+        thresholds = {
+            "instance_down": "oracle_up == 0",
+            "tablespace": ">=95 CRITICAL / >=85 WARNING / >=75 WATCH",
+            "alertlog": "任何 ORA 错误 / 归档失败 / 采集异常",
+            "slow_sql": "Top SQL 耗时 > 30min",
+            "wait_events": "Top 等待 > 1h",
+            "awr": "AWR 负载趋势异常",
+            "ash": "活跃会话 / 阻塞链异常",
+            "memory": "Buffer Cache 命中率 < 95%",
+            "backup": "备份年龄 / 归档可用性异常",
+            "adrci": "ADR Incident 开放 > 5",
+            "health_monitor": "DBMS_HM 检查发现 OPEN 问题",
+            "explain_plan": "SQL 版本失配 / 执行计划异常 > 50",
+            "index_strategy": "未使用索引 > 10",
+            "optimizer_stats": "统计信息过期（last_analyzed > 30 天）",
+        }
+        for alert_name, alert_type in ALERT_SKILL_MAP.items():
+            route = ALERT_ROUTES.get(alert_type, {})
+            skill = route.get("skill", "db/monitoring/")
+            self._alertmap.append({
+                "alert": alert_name, "alert_type": alert_type,
+                "skill": skill, "threshold": thresholds.get(alert_type, "-"),
+                "title": route.get("title", alert_type),
+            })
+
+    # ---- 技能库统计 ----
+    def stats(self):
+        idx = self.index
+        total_sql = 0
+        total_bp = 0
+        total_cm = 0
+        for rel in idx.skills:
+            d = idx.skill_detail(rel)
+            if d:
+                total_sql += len(d["sql_blocks"])
+                total_bp += len(d["best_practices"])
+                total_cm += len(d["common_mistakes"])
+        return {
+            "categories": len(idx.categories),
+            "skills": len(idx.skills),
+            "sql_blocks": total_sql,
+            "best_practices": total_bp,
+            "common_mistakes": total_cm,
+            "start_points": len(START_POINTS),
+            "task_routes": len(TASK_ROUTES),
+            "alert_map": len(self._alertmap),
+            "persona_routes": len(PERSONA_ROUTES),
+        }
+
+    # ---- 技能全文搜索 ----
+    def search(self, q):
+        q = (q or "").strip().lower()
+        if not q:
+            return []
+        out = []
+        for rel in sorted(self.index.skills):
+            p = os.path.normpath(os.path.join(self.index.repo, rel))
+            try:
+                with open(p, "r", encoding="utf-8", errors="replace") as f:
+                    text = f.read()
+            except OSError:
+                continue
+            low = text.lower()
+            if q in rel.lower() or q in low:
+                title = self.index.skills[rel].get("title", "")
+                snippet = ""
+                pos = low.find(q)
+                if pos >= 0:
+                    start = max(0, pos - 80)
+                    end = min(len(text), pos + 120)
+                    snippet = text[start:end].replace("\n", " ").strip()
+                out.append({"file": rel, "title": title, "size": len(text), "snippet": snippet})
+                if len(out) >= 50:
+                    break
+        return out
 
     # ---- 监控状态聚合 ----
     def status(self):
@@ -301,6 +391,12 @@ class Handler(BaseHTTPRequestHandler):
                     self._send(200, json.dumps(d, ensure_ascii=False))
             elif path == "/api/routes":
                 self._send(200, json.dumps({"personas": PERSONA_ROUTES, "tasks": TASK_ROUTES}, ensure_ascii=False))
+            elif path == "/api/startpoints":
+                self._send(200, json.dumps(START_POINTS, ensure_ascii=False))
+            elif path == "/api/search":
+                self._send(200, json.dumps(self.state.search(qs.get("q", "")), ensure_ascii=False))
+            elif path == "/api/stats":
+                self._send(200, json.dumps(self.state.stats(), ensure_ascii=False))
             elif path == "/api/alertmap":
                 self._send(200, json.dumps(self.state._alertmap, ensure_ascii=False))
             elif path == "/api/reports":
