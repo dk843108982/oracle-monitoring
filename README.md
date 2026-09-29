@@ -223,7 +223,7 @@ py -3.12 .\collector\skills_engine.py --alert wait_events --json
 
 本项目已集成 [WatchAlert](https://github.com/opsre/WatchAlert)（开源多数据源告警引擎），用于替代 / 补充 Alertmanager 的通知能力：
 
-
+* 与 Prometheus 规则同步：已导入并启用全部 **40 条规则**（实例 / 表空间 / Alert 日志 / 性能 / 归档 / 备份 / Advisor / DG / RAC），告警统一经 `fc-oracle` 故障中心 → WebHook 通知 → alert-handler 技能诊断闭环。
 
 * **多渠道通知**：微信 / 钉钉 / 飞书 / 企微 / 邮件 / Webhook
 
